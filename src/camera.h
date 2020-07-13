@@ -12,6 +12,10 @@ struct Camera {
 	mat4 view;
 	mat4 final;
 
+	Camera() {
+		
+	}
+
 	Camera(float fov, float ratio, float near, float far) {
 		this->fov = fov;
 		this->ratio = ratio;
@@ -48,6 +52,8 @@ struct Camera {
 		updateProj();
 		updateView();
 		final = proj * view;
+
+		// LOG(hrot, vrot);
 	}
 
 };

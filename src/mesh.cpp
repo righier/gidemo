@@ -94,7 +94,7 @@ bool operator==(const fastObjIndex &a, const fastObjIndex &b) {
 	return a.p == b.p and a.t == b.t and a.n == b.n;
 }
 
-Mesh loadMesh(const string &path) {
+Mesh *loadMesh(const string &path) {
 	fastObjMesh *mesh = fast_obj_read(path.c_str());
 
 	vector<Vertex> vertices;
@@ -163,5 +163,5 @@ Mesh loadMesh(const string &path) {
 
 	fast_obj_destroy(mesh);
 
-	return Mesh(vertices, indices);
+	return new Mesh(vertices, indices);
 }

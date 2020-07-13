@@ -29,8 +29,11 @@ bool checkAndLogProgramError(u32 id) {
 }
 
 u32 loadShader(const string &path, GLenum type) {
+	if (path.size() == 0) return 0;
+
 	string source;
-	if (!readFile(path, source)) {
+	LOG("LOAD: ", path);
+	if (!readFile("../assets/shaders/" + path, source)) {
 		LOG("Cannot find shader source file:", path);
 		return 0;
 	}
@@ -53,12 +56,17 @@ u32 loadShader(const string &path, GLenum type) {
 	return shader;
 }
 
-Shader::Shader(const string &vpath, const string &fpath) {
+Shader::Shader(const string &vpath, const string &fpath): Shader(vpath, "", fpath) {
+
+}
+
+Shader::Shader(const string &vpath, const string &gpath, const string &fpath) {
 	id = 0;
 
 	LOG("load shader:", vpath, fpath);
 
 	u32 vert = loadShader(vpath, GL_VERTEX_SHADER);
+	u32 geom = loadShader(gpath, GL_GEOMETRY_SHADER);
 	u32 frag = loadShader(fpath, GL_FRAGMENT_SHADER);
 
 	if (vert and frag) {
@@ -71,6 +79,7 @@ Shader::Shader(const string &vpath, const string &fpath) {
 		}
 
 		glAttachShader(id, vert);
+    if (geom) glAttachShader(id, geom);
 		glAttachShader(id, frag);
 		glLinkProgram(id);
 
@@ -81,12 +90,14 @@ Shader::Shader(const string &vpath, const string &fpath) {
 		} else {
 			LOG("linked.");
 			glDetachShader(id, vert);
+      if (geom) glDetachShader(id, geom);
 			glDetachShader(id, frag);
 		}
 
 	}
 
 	glDeleteShader(vert);
+  if (geom) glDeleteShader(geom);
 	glDeleteShader(frag);
 
 	glUseProgram(0);
