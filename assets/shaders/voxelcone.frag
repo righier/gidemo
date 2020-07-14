@@ -14,21 +14,6 @@ uniform vec3 u_emission;
 
 // uniform sampler2DArray u_tex;
 
-struct PointLight {
-	vec3 pos;
-	vec3 color;
-	vec3 atten;
-};
-
-struct DirLight {
-	vec3 dir;
-	vec3 color;
-};
-
-#define MAX_NPOINTLIGHTS 4
-uniform int u_nPointLights;
-uniform vec3 u_pointLights[MAX_NPOINTLIGHTS*3];
-
 uniform sampler3D u_voxelTexture;
 
 // #define MAX_NDIRLIGHTS 4
@@ -48,23 +33,9 @@ void main() {
   // o_normal = tangent_matrix * t_normal;
 
   vec3 ambientColor = vec3(0);
+  vec3 color = u_diffuse;
+  vec4 voxelDiffuse = textureLod(u_voxelTexture, a_pos/u_voxelScale)
+  color = 
 
-  vec3 totalLight = ambientColor;
-  for (int i = 0; i < u_nPointLights*3; i += 3) {
-
-  	vec3 lightPos = u_pointLights[i];
-  	vec3 lightColor = u_pointLights[i+1];
-  	vec3 lightAtten = u_pointLights[i+2];
-
-  	vec3 lightDir = lightPos - a_pos;
-  	float dist = length(lightDir);
-  	lightDir = lightDir / dist;
-
-  	float s = 1.0 / (lightAtten.x + lightAtten.y*dist + lightAtten.z*dist*dist);
-  	float t = max(0, dot(a_normal, lightDir));
-  	totalLight += lightColor * s * t;
-  }
-
-  vec3 color = totalLight * u_diffuse;
   o_albedo = pow(color, vec3(1.0/2.2));
 }

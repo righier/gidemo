@@ -43,7 +43,7 @@ vec3 spotlight() {
 	float intensity = smoothstep(u_lightOuterCos, u_lightInnerCos, angle);
 	float attenuation = 1.0 / (1.0 + dist);	
 	intensity *= attenuation;
-	intensity *= dot(a_normal, lightDir);
+	intensity *= max(0, dot(a_normal, lightDir));
 	intensity *= 1.0 - shadow();
 	return u_lightColor * intensity;
 }

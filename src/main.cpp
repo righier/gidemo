@@ -10,6 +10,25 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
+
+void GLAPIENTRY
+MessageCallback( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam )
+{
+	UNUSED(source);
+	UNUSED(id);
+	UNUSED(length);
+	UNUSED(userParam);
+  fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+            type, severity, message );
+}
+
 Scene scene;
 AssetStore assets;
 
@@ -38,6 +57,7 @@ void initVoxelize() {
 }
 
 void renderShadowMap() {
+
 	shadowShader->bind();
 	shadowShader->set("u_project", scene.light.getProjectionMatrix());
 
@@ -66,10 +86,10 @@ void voxelize() {
 	glDisable(GL_DEPTH_TEST);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-	activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
-	activeShader->set("u_shadowBias", shadowBias);
+	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
+	voxelizeShader->set("u_shadowBias", shadowBias);
  	shadowMap->t->bind(1);
-	activeShader->set("u_shadowMap", 1);
+	voxelizeShader->set("u_shadowMap", 1);
  
 	voxelizeShader->set("u_voxelScale", voxelScale);
 	voxelTexture->bind(0);
@@ -81,6 +101,7 @@ void voxelize() {
 	scene.draw(voxelizeShader);
 	//render
 
+	voxelTexture->bind(0);
 	glGenerateMipmap(GL_TEXTURE_3D);
 }
 
@@ -205,6 +226,11 @@ int main() {
 
 	Window::update();
 
+	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	glDebugMessageCallback(MessageCallback, 0);
+	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+
 	double oldTime = System::time();
 	int updateCount = 0;
 
@@ -213,7 +239,7 @@ int main() {
 
 	initVoxelize();
 
-	activeShader = basicShader;
+	activeShader = voxelConeShader;
 
 	cam = Camera(glm::radians(60.f), (float)Window::getWidth() / (float)Window::getHeight(), .1f, 100.f);
 
@@ -336,7 +362,7 @@ int main() {
 			ImGui::DragFloat3("Color", &scene.light.color.x, 0.1f);
 			ImGui::SliderFloat("Angle", &scene.light.angle, 0.f, 180.f);
 			ImGui::SliderFloat("Smooth", &scene.light.smooth, 0.f, 180.f);
-			ImGui::SliderFloat("Bias", &shadowBias, -0.1f, 0.1f, "%.5f", 1.0f);
+			ImGui::SliderFloat("Bias", &shadowBias, -0.00001f, 0.001f, "%.5f", 1.0f);
 		}
 
 		ImGui::End();

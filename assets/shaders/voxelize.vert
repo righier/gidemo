@@ -23,7 +23,7 @@ void main() {
 
 	mat3 rotate = mat3(transpose(inverse(u_transform)));
 
-	a_normal = rotate * i_normal;
+	a_normal = normalize(rotate * i_normal);
 	// o_xtan = rotate * i_xtan;
 	// o_ytan = rotate * i_ytan;
 
