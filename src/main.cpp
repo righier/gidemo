@@ -15,10 +15,13 @@ AssetStore assets;
 
 Texture *voxelTexture;
 
-Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader;
+Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
 Mesh *bunnyMesh, *cubeMesh, *planeMesh, *sphereMesh;
 
 Shader *activeShader;
+
+float shadowBias = 0.00007;
+Framebuffer *shadowMap;
 
 Camera cam;
 
@@ -32,26 +35,48 @@ void initVoxelize() {
 	voxelTexture = new Texture();
 	voxelTexture->init3D(voxelCount);
 
-	LOG(vec3(1.2f));
+}
+
+void renderShadowMap() {
+	shadowShader->bind();
+	shadowShader->set("u_project", scene.light.getProjectionMatrix());
+
+	shadowMap->bind();
+	shadowMap->setViewport();
+
+	// glEnable(GL_CULL_FACE);
+	// glCullFace(GL_FRONT);
+	glEnable(GL_DEPTH_TEST);
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	scene.draw(shadowShader);
+
+	// glCullFace(GL_BACK);
 }
 
 void voxelize() {
 
 	voxelizeShader->bind();
 
-	voxelizeShader->set("u_voxelScale", voxelScale);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	Framebuffer::reset();
 	glViewport(0, 0, voxelCount, voxelCount);
 	glDisable(GL_BLEND);
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-  
+
+	activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
+	activeShader->set("u_shadowBias", shadowBias);
+ 	shadowMap->t->bind(1);
+	activeShader->set("u_shadowMap", 1);
+ 
+	voxelizeShader->set("u_voxelScale", voxelScale);
 	voxelTexture->bind(0);
-	voxelTexture->clear(vec4(0,0,0,0));
 	voxelizeShader->set("voxelTexture", 0);
+	voxelTexture->clear(vec4(0,0,0,0));
 	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+
 
 	scene.draw(voxelizeShader);
 	//render
@@ -83,21 +108,23 @@ void loadAssets() {
 	voxelizeShader = new Shader("voxelize.vert", "voxelize.geom", "voxelize.frag");
 	visualizeShader = new Shader("showvoxels.vert", "showvoxels.frag");
 	voxelConeShader = new Shader("voxelcone.vert", "voxelcone.frag");
+	shadowShader = new Shader("shadow.vert", "shadow.frag");
 
 	bunnyMesh = loadMesh("../assets/models/bunny.obj");
 	cubeMesh = loadMesh("../assets/models/cube.obj");
 	planeMesh = loadMesh("../assets/models/plane.obj");
 	sphereMesh = loadMesh("../assets/models/lp_sphere.obj");
 
+	shadowMap = Framebuffer::shadowMap(2048, 2048);
 }
 
 void initScene() {
 
 	scene.light = SpotLight(
-		vec3(0, 0.9, 0),
+		vec3(0, 0.99, 0),
 		vec3(0, -1, 0),
 		vec3(1,1,1),
-		120.f, 5.f
+		90.f, 2.f
 		);
 
 	scene.add(Object(
@@ -186,8 +213,7 @@ int main() {
 
 	initVoxelize();
 
-	activeShader = voxelConeShader;
-
+	activeShader = basicShader;
 
 	cam = Camera(glm::radians(60.f), (float)Window::getWidth() / (float)Window::getHeight(), .1f, 100.f);
 
@@ -253,8 +279,11 @@ int main() {
 		cam.move(move);
 		cam.update();
 
+		renderShadowMap();
+
 		voxelize();
 
+		Framebuffer::reset();
 		glViewport(0, 0, winSize.x, winSize.y);
 		glEnable(GL_BLEND);
 		glDisable(GL_CULL_FACE);
@@ -267,14 +296,18 @@ int main() {
 
 		activeShader->bind();
 		activeShader->set("u_project", cam.final);
+		activeShader->set("u_cameraPos", cam.pos);
 
-		visualizeShader->set("u_project", cam.final);
-		visualizeShader->set("u_voxelScale", voxelScale);
-		visualizeShader->set("u_voxelCount", voxelCount);
-		visualizeShader->set("u_cameraPos", cam.pos);
+		activeShader->set("u_voxelScale", voxelScale);
+		activeShader->set("u_voxelCount", voxelCount);
 
 		voxelTexture->bind(0);
-		visualizeShader->set("voxelTexture", 0);
+		activeShader->set("u_voxelTexture", 0);
+
+		activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
+		activeShader->set("u_shadowBias", shadowBias);
+		shadowMap->t->bind(1);
+		activeShader->set("u_shadowMap", 1);
 
 		scene.draw(activeShader);
 
@@ -303,6 +336,7 @@ int main() {
 			ImGui::DragFloat3("Color", &scene.light.color.x, 0.1f);
 			ImGui::SliderFloat("Angle", &scene.light.angle, 0.f, 180.f);
 			ImGui::SliderFloat("Smooth", &scene.light.smooth, 0.f, 180.f);
+			ImGui::SliderFloat("Bias", &shadowBias, -0.1f, 0.1f, "%.5f", 1.0f);
 		}
 
 		ImGui::End();

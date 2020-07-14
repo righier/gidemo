@@ -36,16 +36,16 @@ float shadow() {
 }
 
 vec3 spotlight() {
-  vec3 spotDir = u_lightDir;
-  vec3 lightDir = normalize(u_lightPos - a_pos);
-  float dist = abs(length(a_pos - u_lightPos));
-  float angle = dot(spotDir, -lightDir);
-  float intensity = smoothstep(u_lightOuterCos, u_lightInnerCos, angle);
-  float attenuation = 1.0 / (1.0 + dist);	
-  intensity *= attenuation;
-  intensity *= dot(a_normal, lightDir);
-  intensity *= 1.0 - shadow();
-  return u_lightColor * intensity;
+	vec3 spotDir = u_lightDir;
+	vec3 lightDir = normalize(u_lightPos - a_pos);
+	float dist = abs(length(a_pos - u_lightPos));
+	float angle = dot(spotDir, -lightDir);
+	float intensity = smoothstep(u_lightOuterCos, u_lightInnerCos, angle);
+	float attenuation = 1.0 / (1.0 + dist);	
+	intensity *= attenuation;
+	intensity *= dot(a_normal, lightDir);
+	intensity *= 1.0 - shadow();
+	return u_lightColor * intensity;
 }
 
 void main() {

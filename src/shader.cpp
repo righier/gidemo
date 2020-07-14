@@ -79,7 +79,7 @@ Shader::Shader(const string &vpath, const string &gpath, const string &fpath) {
 		}
 
 		glAttachShader(id, vert);
-    if (geom) glAttachShader(id, geom);
+		if (geom) glAttachShader(id, geom);
 		glAttachShader(id, frag);
 		glLinkProgram(id);
 
@@ -90,14 +90,16 @@ Shader::Shader(const string &vpath, const string &gpath, const string &fpath) {
 		} else {
 			LOG("linked.");
 			glDetachShader(id, vert);
-      if (geom) glDetachShader(id, geom);
+			if (geom) glDetachShader(id, geom);
 			glDetachShader(id, frag);
 		}
 
+	} else {
+		exit(-1);
 	}
 
 	glDeleteShader(vert);
-  if (geom) glDeleteShader(geom);
+	if (geom) glDeleteShader(geom);
 	glDeleteShader(frag);
 
 	glUseProgram(0);

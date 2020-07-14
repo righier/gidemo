@@ -48,9 +48,9 @@ struct SpotLight {
 
 	void upload(Shader *shader) {
 		shader->set("u_lightPos", pos);
-		shader->set("u_lightDir", dir);
+		shader->set("u_lightDir", glm::normalize(dir));
 		shader->set("u_lightColor", color);
-		shader->set("u_lightAngle", angle);
-		shader->set("u_lightSmooth", smooth);
+		shader->set("u_lightInnerCos", cos(.5f * glm::radians(angle - smooth)));
+		shader->set("u_lightOuterCos", cos(.5f * glm::radians(angle)));
 	}
 };

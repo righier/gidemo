@@ -28,6 +28,19 @@ struct Texture {
 		glTexStorage3D(type, levels, GL_RGBA8, size, size, size);
 	}
 
+	static Texture *shadowMap(int width, int height) {
+		Texture *t = new Texture();
+		t->type = GL_TEXTURE_2D;
+		glGenTextures(1, &t->id);
+		t->bind(0);
+		glTexImage2D(t->type, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexParameteri(t->type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(t->type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(t->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
+		glTexParameteri(t->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER); 
+		return t;
+	}
+
 	void bind(int channel) {
 		glActiveTexture(GL_TEXTURE0 + channel);
 		glBindTexture(type, id);
@@ -40,6 +53,46 @@ struct Texture {
 	void dispose() {
 		glDeleteTextures(1, &id);
 	}
+};
+
+struct Framebuffer {
+	int width, height;
+	u32 id;
+	Texture *t;
+
+	Framebuffer(int width, int height): width(width), height(height) {
+		glGenFramebuffers(1, &id);
+	}
+
+	void setViewport() {
+		glViewport(0, 0, width, height);
+	}
+
+	void bind() {
+		glBindFramebuffer(GL_FRAMEBUFFER, id);
+	}
+
+	void dispose() {
+		glDeleteFramebuffers(1, &id);
+	}
+
+	static Framebuffer *shadowMap(int width, int height) {
+		Framebuffer *buffer = new Framebuffer(width, height);
+		buffer->t = Texture::shadowMap(width, height);
+
+		buffer->bind();
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, buffer->t->id, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+		Framebuffer::reset();
+
+		return buffer;
+	}
+
+	static void reset() {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
 };
 
 struct Shader {
