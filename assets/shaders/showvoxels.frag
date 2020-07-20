@@ -6,7 +6,7 @@ in vec3 a_pos;
 // in vec3 a_xtan;
 // in vec3 a_ytan;
 
-uniform sampler3D voxelTexture;
+uniform sampler3D u_voxelTexture;
 
 uniform vec3 u_cameraPos;
 uniform float u_voxelScale;
@@ -20,27 +20,46 @@ bool inside(vec3 v) {
   return max(max(v.x, v.y), v.z) <= 1.0f;
 }
 
+bool insideVoxel(vec3 pos) {
+  return all(lessThanEqual(pos, vec3(1.0f))) && all(greaterThanEqual(pos, vec3(0.0f)));
+}
+
+vec3 toVoxel(vec3 pos) {
+  return pos*(0.5/u_voxelScale)+0.5;  
+}
+
+float getMaxComponent(vec3 p) {
+  vec3 q = abs(p);
+  return max(max(q.x, q.y), q.z);
+}
+
 void main() {
-  if (gl_FragCoord.z <= 0) discard;
+  // if (gl_FragCoord.z <= 0) return;
 
-  const vec3 c = abs(u_cameraPos);
+  vec3 camv = toVoxel(u_cameraPos);
+  vec3 posv = toVoxel(a_pos);
+  vec3 dir = normalize(posv - camv);
 
-  vec3 start = (max(max(c.x,c.y),c.z) < u_voxelScale) ? u_cameraPos : a_pos;
-  start /= u_voxelScale;
-  vec3 dir = normalize(a_pos - u_cameraPos);
+  float hi = length(posv - camv);
+  float lo = 0.0f;
+  for (int i = 0; i < 10; i++) {
+    float mid = (hi + lo) * 0.5f;
+    if (insideVoxel(camv + dir*mid)) hi = mid;
+    else lo = mid;
+  }
+
+  vec3 start = camv + dir * hi;
 
   vec4 color = vec4(0);
 
-  float stepSize = 2.0f*pow(2, u_voxelLod) / (u_voxelCount*5.0f);
-  // int stepCount = int(3.0f / stepSize);
+  float stepSize = pow(2, u_voxelLod) / (u_voxelCount*5.0f);
 
   vec3 pos = start;
 
-  // for (int step = 0; step < stepCount && color.a < 0.99f; step++) {
   int i = 0;
   int maxi = 1000;
-  while (inside(pos) && color.a < 0.99f) {
-    vec4 cc = textureLod(voxelTexture, pos*0.5 + 0.5, u_voxelLod);
+  while (insideVoxel(pos) && color.a < 0.99f) {
+    vec4 cc = textureLod(u_voxelTexture, pos, u_voxelLod);
     color += (1.0f - color.a) * cc;
     pos += dir*stepSize;
   }

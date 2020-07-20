@@ -1,5 +1,7 @@
 
 #include <stdio.h>
+#include <locale>
+#include <codecvt>
 
 #include "utils.h"
 
@@ -54,4 +56,16 @@ u32 MurmurHash2 ( const void * key, int len, u32 seed ) {
 
 u32 hash(const void *buffer, int size) {
 	return MurmurHash2(buffer, size, 0xa5a8ae1e);
+}
+
+std::wstring s2ws(const std::string& str) {
+    using convert_typeX = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+    return converterX.from_bytes(str);
+}
+
+std::string ws2s(const std::wstring& wstr) {
+    using convert_typeX = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+    return converterX.to_bytes(wstr);
 }

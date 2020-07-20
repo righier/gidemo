@@ -56,18 +56,14 @@ u32 loadShader(const string &path, GLenum type) {
 	return shader;
 }
 
-Shader::Shader(const string &vpath, const string &fpath): Shader(vpath, "", fpath) {
-
-}
-
-Shader::Shader(const string &vpath, const string &gpath, const string &fpath) {
-	id = 0;
-
+u32 loadProgram(const string &vpath, const string &gpath, const string &fpath) {
 	LOG("load shader:", vpath, fpath);
 
 	u32 vert = loadShader(vpath, GL_VERTEX_SHADER);
 	u32 geom = loadShader(gpath, GL_GEOMETRY_SHADER);
 	u32 frag = loadShader(fpath, GL_FRAGMENT_SHADER);
+
+	u32 id;
 
 	if (vert and frag) {
 		LOG("compiled.");
@@ -87,6 +83,7 @@ Shader::Shader(const string &vpath, const string &gpath, const string &fpath) {
 			LOG("ERROR");
 			glUseProgram(0);
 			glDeleteProgram(id);
+			id = 0;
 		} else {
 			LOG("linked.");
 			glDetachShader(id, vert);
@@ -95,7 +92,7 @@ Shader::Shader(const string &vpath, const string &gpath, const string &fpath) {
 		}
 
 	} else {
-		exit(-1);
+		// exit(-1);
 	}
 
 	glDeleteShader(vert);
@@ -103,6 +100,32 @@ Shader::Shader(const string &vpath, const string &gpath, const string &fpath) {
 	glDeleteShader(frag);
 
 	glUseProgram(0);
+	return id;
+}
+
+char buffer[64];
+const char *Shader::getUniformName(const char *name, int index) {
+	snprintf(buffer, sizeof(buffer), "%s[%d]", name, index);
+	return buffer;
+}
+
+
+Shader::Shader(const string &vpath, const string &fpath): 
+Shader(vpath, "", fpath) {
+
+}
+
+Shader::Shader(const string &vpath, const string &gpath, const string &fpath): 
+id(0), vpath(vpath), gpath(gpath), fpath(fpath) {
+	load();
+}
+
+void Shader::load() {
+	u32 newId = loadProgram(vpath, gpath, fpath);
+	if (newId) {
+		dispose();
+		id = newId;
+	}
 }
 
 void Shader::bind() {
@@ -111,6 +134,6 @@ void Shader::bind() {
 
 void Shader::dispose() {
 	glUseProgram(0);
-	glDeleteProgram(id);
+	if (id) glDeleteProgram(id);
 }
 

@@ -10,8 +10,10 @@ struct Texture {
 	u32 id;
 	u32 type;
 
-	void init3D(int size) {
-		type = GL_TEXTURE_3D;
+	static Texture *init3D(int size) {
+		Texture *t = new Texture();
+		u32 type = GL_TEXTURE_3D;
+		u32 id;
 		glGenTextures(1, &id);
 		glBindTexture(type, id);
 
@@ -26,6 +28,9 @@ struct Texture {
 		levels = 7;
 		LOG("size: ", size, " levels: ", levels);
 		glTexStorage3D(type, levels, GL_RGBA8, size, size, size);
+		t->id = id;
+		t->type = type;
+		return t;
 	}
 
 	static Texture *shadowMap(int width, int height) {
@@ -97,10 +102,13 @@ struct Framebuffer {
 
 struct Shader {
 	int id = 0;
+	string vpath, gpath, fpath;
 
 	Shader() {}
 	Shader(const string &vpath, const string &fpath);
 	Shader(const string &vpath, const string &gpath, const string &fpath);
+
+	void load();
 
 	void bind();
 
@@ -178,6 +186,13 @@ struct Shader {
 	void set(const char *name, T value, u32 count) {
 		u32 uid = glGetUniformLocation(this->id, name);
 		set(uid, value, count);
+	}
+
+	static const char *getUniformName(const char *name, int index);
+
+	template <class T>
+	void setIndex(const char *name, int index, T value) {
+		set(getUniformName(name, index), value);
 	}
 
 	void dispose();

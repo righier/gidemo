@@ -39,3 +39,6 @@ using std::string;
 bool readFile(const string &path, string &out);
 
 u32 hash(const void *buffer, int size);
+
+std::wstring s2ws(const std::string &str);
+std::string ws2s(const std::wstring& wstr);

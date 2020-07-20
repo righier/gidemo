@@ -32,7 +32,8 @@ MessageCallback( GLenum source,
 Scene scene;
 AssetStore assets;
 
-Texture *voxelTexture;
+// Texture *voxelTexture;
+Texture *voxelTextures[6];
 
 Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
 Mesh *bunnyMesh, *cubeMesh, *planeMesh, *sphereMesh;
@@ -46,14 +47,76 @@ Camera cam;
 
 int voxelCount = 128;
 float voxelScale = 1.01f;
+float offsetPos = 0.0f;
+float offsetDist = 1.0f;
 
 bool toggleVoxels = false;
 float voxelLod = 0;
 
-void initVoxelize() {
-	voxelTexture = new Texture();
-	voxelTexture->init3D(voxelCount);
+#ifdef _WIN32
+#include <windows.h>
+HANDLE changeHandle;
+FILE_NOTIFY_INFORMATION infoBuffer[1024];
+bool shaderFileChanged = false;
+double lastShaderUpdate = 0;
 
+DWORD WINAPI worker(LPVOID lpParam) {
+	UNUSED(lpParam);
+	while(true) {
+		DWORD bytesReturned;
+		if (ReadDirectoryChangesW(changeHandle, infoBuffer, sizeof(infoBuffer), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, &bytesReturned, NULL, NULL)) {
+
+			auto *p = &infoBuffer[0];
+			do {
+				std::wstring wname(p->FileName, p->FileNameLength/2);
+				string name = ws2s(wname);
+				name.resize(p->FileNameLength / 2);
+				if (name == "voxelcone.vert" || name == "voxelcone.frag") {
+					shaderFileChanged = true;
+				}
+
+
+				p += p->NextEntryOffset;
+			} while(p->NextEntryOffset);
+		}
+	}
+}
+
+void initChangeHandle() {
+
+	changeHandle = CreateFile("C:/users/ermanno/desktop/gidemo/assets/shaders", 
+		FILE_LIST_DIRECTORY,
+		FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE,
+		NULL, 
+		OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		NULL);
+
+	if (changeHandle == INVALID_HANDLE_VALUE) {
+		LOG("invalid handle error");
+	} else {
+		CreateThread( NULL, 0, worker, NULL, 0, NULL );
+	}
+
+}
+
+void checkShaderChanges() {
+	double currTime = System::time();
+	if (currTime - lastShaderUpdate > 1.0 and shaderFileChanged) {
+		voxelConeShader->load();
+		lastShaderUpdate = currTime;
+	}
+	if (shaderFileChanged) shaderFileChanged = false;
+}
+#else
+void initChangeHandle() {}
+void checkShaderChanges() {}
+#endif
+
+void initVoxelize() {
+	for (int i = 0; i < 6; i++) {
+		voxelTextures[i] = Texture::init3D(voxelCount);
+	}
 }
 
 void renderShadowMap() {
@@ -64,8 +127,8 @@ void renderShadowMap() {
 	shadowMap->bind();
 	shadowMap->setViewport();
 
-	// glEnable(GL_CULL_FACE);
-	// glCullFace(GL_FRONT);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -85,24 +148,30 @@ void voxelize() {
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	// glEnable(GL_MULTISAMPLE);
 
 	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
 	voxelizeShader->set("u_shadowBias", shadowBias);
- 	shadowMap->t->bind(1);
-	voxelizeShader->set("u_shadowMap", 1);
+ 	shadowMap->t->bind(6);
+	voxelizeShader->set("u_shadowMap", 6);
  
 	voxelizeShader->set("u_voxelScale", voxelScale);
-	voxelTexture->bind(0);
-	voxelizeShader->set("voxelTexture", 0);
-	voxelTexture->clear(vec4(0,0,0,0));
-	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+	for (int i = 0; i < 6; i++) {
+		voxelTextures[i]->bind(i);
+		voxelizeShader->setIndex("u_voxelTexture", i, i);
+		voxelTextures[i]->clear(vec4(0,0,0,0));
+		glBindImageTexture(i, voxelTexturea[i]->id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+	}
 
 
 	scene.draw(voxelizeShader);
 	//render
 
-	voxelTexture->bind(0);
-	glGenerateMipmap(GL_TEXTURE_3D);
+	for (int i = 0; i < 6; i++) {
+		voxelTextures[i]->bind(i);
+		glGenerateMipmap(GL_TEXTURE_3D);
+	}
 }
 
 void showVoxels() {
@@ -114,9 +183,14 @@ void showVoxels() {
 	visualizeShader->set("u_cameraPos", cam.pos);
 	visualizeShader->set("u_voxelLod", voxelLod);
 
-	voxelTexture->bind(0);
-	visualizeShader->set("voxelTexture", 0);
 
+	for (int i = 0; i < 6; i++) {
+		voxelTextures[i]->bind(i);
+		visualizeShader->setIndex("u_voxelTexture", i, i);
+	}
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	cubeMesh->draw();
 
@@ -222,7 +296,7 @@ void initScene() {
 int main() {
 	System::init(4, 6);
 
-	Window::create(1280, 720, "title", Window::WINDOWED, true);
+	Window::create(1280, 720, "title", Window::WINDOWED, false);
 
 	Window::update();
 
@@ -230,6 +304,24 @@ int main() {
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(MessageCallback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+
+	int work_grp_cnt[3];
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
+	printf("max global (total) work group counts x:%i y:%i z:%i\n",
+		work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
+
+	int work_grp_size[3];
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
+	printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
+		work_grp_size[0], work_grp_size[1], work_grp_size[2]);
+
+	int work_grp_inv;
+	glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
+	printf("max local work group invocations %i\n", work_grp_inv);
 
 	double oldTime = System::time();
 	int updateCount = 0;
@@ -240,6 +332,7 @@ int main() {
 	initVoxelize();
 
 	activeShader = voxelConeShader;
+
 
 	cam = Camera(glm::radians(60.f), (float)Window::getWidth() / (float)Window::getHeight(), .1f, 100.f);
 
@@ -252,7 +345,12 @@ int main() {
 
 	double prevTime = System::time();
 
+	initChangeHandle();
+
 	while(!Window::shouldClose()) {
+
+		checkShaderChanges();
+
 		double time = System:: time();
 		float timeDelta = (float)(time - prevTime);
 		prevTime = time;
@@ -266,7 +364,7 @@ int main() {
 		}
 
 		if (Input::getKey(KEY_ESCAPE)) {
-			Window::setShouldClose(true);
+			// Window::setShouldClose(true);
 		}
 
 		int lock = Input::getKey(KEY_SPACE);
@@ -312,7 +410,10 @@ int main() {
 		Framebuffer::reset();
 		glViewport(0, 0, winSize.x, winSize.y);
 		glEnable(GL_BLEND);
-		glDisable(GL_CULL_FACE);
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+
 		glEnable(GL_DEPTH_TEST);
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glDepthFunc(GL_LEQUAL);
@@ -326,14 +427,18 @@ int main() {
 
 		activeShader->set("u_voxelScale", voxelScale);
 		activeShader->set("u_voxelCount", voxelCount);
+		activeShader->set("u_offsetPos", offsetPos);
+		activeShader->set("u_offsetDist", offsetDist);
 
-		voxelTexture->bind(0);
-		activeShader->set("u_voxelTexture", 0);
+		for (int i = 0; i < 6; i++) {
+			voxelTextures[i]->bind(i);
+			activeShader->setIndex("u_voxelTexture", i, i);
+		}
 
 		activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
 		activeShader->set("u_shadowBias", shadowBias);
-		shadowMap->t->bind(1);
-		activeShader->set("u_shadowMap", 1);
+		shadowMap->t->bind(6);
+		activeShader->set("u_shadowMap", 6);
 
 		scene.draw(activeShader);
 
@@ -370,6 +475,8 @@ int main() {
 		ImGui::Begin("Renderer");
 		ImGui::SliderFloat("LOD", &voxelLod, 0.f, 10.f);
 		ImGui::Checkbox("show voxels", &toggleVoxels);
+		ImGui::SliderFloat("Offset Pos", &offsetPos, -5.f, 5.f, "%.5f");
+		ImGui::SliderFloat("Offset Dist", &offsetDist, 0.0f, 5.f, "%.5f");
 		ImGui::End();
 
 		Window::update();

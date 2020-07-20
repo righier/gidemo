@@ -22,7 +22,7 @@ uniform float u_lightOuterCos;
 
 uniform sampler2D u_shadowMap;
 
-layout(RGBA8) uniform image3D voxelTexture;
+layout(RGBA8) uniform image3D u_voxelTexture;
 
 float shadow() {
 	vec4 posls = u_lightProj * vec4(b_pos, 1.0);
@@ -49,19 +49,25 @@ vec3 spotlight() {
 	return u_lightColor * intensity;
 }
 
-vec3 scaleAndBias(vec3 p) { return 0.5f * p + vec3(0.5f); }
+bool insideVoxel(vec3 pos) {
+  return all(lessThanEqual(pos, vec3(1.0f))) && all(greaterThanEqual(pos, vec3(0.0f)));
+}
+
+vec3 toVoxel(vec3 pos) {
+  return pos*(0.5/u_voxelScale)+0.5;  
+}
 
 void main(){
 
-	const vec3 p = abs(b_pos);
+	vec3 posVoxelSpace = toVoxel(b_pos);
 
-	if(max(max(p.x,p.y),p.z) >= u_voxelScale) return;
+	if (!insideVoxel(posVoxelSpace)) return;
 
 	vec3 color = u_diffuse * spotlight();
 	// color = u_diffuse;
 
 	vec3 voxelPos = b_pos/u_voxelScale*0.5 + 0.5;
-	ivec3 dim = imageSize(voxelTexture);
+	ivec3 dim = imageSize(u_voxelTexture);
 	vec4 res = vec4(color, 1);
-	imageStore(voxelTexture, ivec3(dim * voxelPos), res);
+	imageStore(u_voxelTexture, ivec3(dim * posVoxelSpace), res);
 }
