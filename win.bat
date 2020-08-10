@@ -1,0 +1,3 @@
+pushd bin
+cmake
+popd

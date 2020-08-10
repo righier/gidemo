@@ -24,7 +24,10 @@ MessageCallback( GLenum source,
 	UNUSED(id);
 	UNUSED(length);
 	UNUSED(userParam);
-  fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+
+	if (type == 0x8251) return;
+	
+	fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
             type, severity, message );
 }
@@ -36,6 +39,7 @@ AssetStore assets;
 Texture *voxelTextures[6];
 
 Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
+Shader *mipmapShader;
 Mesh *bunnyMesh, *cubeMesh, *planeMesh, *sphereMesh;
 
 Shader *activeShader;
@@ -48,70 +52,14 @@ Camera cam;
 int voxelCount = 128;
 float voxelScale = 1.01f;
 float offsetPos = 0.0f;
-float offsetDist = 1.0f;
+float offsetDist = 0.25f;
 
+bool dynamidVoxelize = true;
 bool toggleVoxels = false;
+bool customMipmap = true;
 float voxelLod = 0;
+int voxelIndex = 0;
 
-#ifdef _WIN32
-#include <windows.h>
-HANDLE changeHandle;
-FILE_NOTIFY_INFORMATION infoBuffer[1024];
-bool shaderFileChanged = false;
-double lastShaderUpdate = 0;
-
-DWORD WINAPI worker(LPVOID lpParam) {
-	UNUSED(lpParam);
-	while(true) {
-		DWORD bytesReturned;
-		if (ReadDirectoryChangesW(changeHandle, infoBuffer, sizeof(infoBuffer), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, &bytesReturned, NULL, NULL)) {
-
-			auto *p = &infoBuffer[0];
-			do {
-				std::wstring wname(p->FileName, p->FileNameLength/2);
-				string name = ws2s(wname);
-				name.resize(p->FileNameLength / 2);
-				if (name == "voxelcone.vert" || name == "voxelcone.frag") {
-					shaderFileChanged = true;
-				}
-
-
-				p += p->NextEntryOffset;
-			} while(p->NextEntryOffset);
-		}
-	}
-}
-
-void initChangeHandle() {
-
-	changeHandle = CreateFile("C:/users/ermanno/desktop/gidemo/assets/shaders", 
-		FILE_LIST_DIRECTORY,
-		FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE,
-		NULL, 
-		OPEN_EXISTING,
-		FILE_FLAG_BACKUP_SEMANTICS,
-		NULL);
-
-	if (changeHandle == INVALID_HANDLE_VALUE) {
-		LOG("invalid handle error");
-	} else {
-		CreateThread( NULL, 0, worker, NULL, 0, NULL );
-	}
-
-}
-
-void checkShaderChanges() {
-	double currTime = System::time();
-	if (currTime - lastShaderUpdate > 1.0 and shaderFileChanged) {
-		voxelConeShader->load();
-		lastShaderUpdate = currTime;
-	}
-	if (shaderFileChanged) shaderFileChanged = false;
-}
-#else
-void initChangeHandle() {}
-void checkShaderChanges() {}
-#endif
 
 void initVoxelize() {
 	for (int i = 0; i < 6; i++) {
@@ -139,6 +87,8 @@ void renderShadowMap() {
 
 void voxelize() {
 
+	if (!dynamidVoxelize) return;
+
 	voxelizeShader->bind();
 
 
@@ -161,16 +111,37 @@ void voxelize() {
 		voxelTextures[i]->bind(i);
 		voxelizeShader->setIndex("u_voxelTexture", i, i);
 		voxelTextures[i]->clear(vec4(0,0,0,0));
-		glBindImageTexture(i, voxelTexturea[i]->id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+		glBindImageTexture(i, voxelTextures[i]->id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 	}
 
 
 	scene.draw(voxelizeShader);
 	//render
 
-	for (int i = 0; i < 6; i++) {
-		voxelTextures[i]->bind(i);
-		glGenerateMipmap(GL_TEXTURE_3D);
+	if (customMipmap) {
+		for (int i = 0; i < 6; i++) {
+			mipmapShader->bind();
+
+			u32 size = voxelCount / 2;
+			u32 level = 1;
+			while (size > 0) {
+				mipmapShader->set("u_level", std::max(0.002f, (float)(level-1)));
+				mipmapShader->set("u_dir", i);
+				mipmapShader->set("u_src", 0);
+				voxelTextures[i]->bind(0);
+				mipmapShader->set("u_dest", 1);
+				glBindImageTexture(1, voxelTextures[i]->id, level, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+
+				mipmapShader->dispatch(size, size, size);
+				size /= 2;
+				level++;
+			}
+		}
+	} else {
+		for (int i = 0; i < 6; i++) {
+			voxelTextures[i]->bind(i);
+			glGenerateMipmap(GL_TEXTURE_3D);
+		}
 	}
 }
 
@@ -182,6 +153,7 @@ void showVoxels() {
 	visualizeShader->set("u_voxelCount", voxelCount);
 	visualizeShader->set("u_cameraPos", cam.pos);
 	visualizeShader->set("u_voxelLod", voxelLod);
+	visualizeShader->set("u_voxelIndex", voxelIndex);
 
 
 	for (int i = 0; i < 6; i++) {
@@ -198,12 +170,14 @@ void showVoxels() {
 
 void loadAssets() {
 
-	flatShader = new Shader("flat.vert", "flat.frag");
-	basicShader = new Shader("basic.vert", "basic.frag");
-	voxelizeShader = new Shader("voxelize.vert", "voxelize.geom", "voxelize.frag");
-	visualizeShader = new Shader("showvoxels.vert", "showvoxels.frag");
-	voxelConeShader = new Shader("voxelcone.vert", "voxelcone.frag");
-	shadowShader = new Shader("shadow.vert", "shadow.frag");
+	flatShader = assets.add("flat_shader", new Shader("flat.vert", "flat.frag"));
+	basicShader = assets.add("basic_shader", new Shader("basic.vert", "basic.frag"));
+	voxelizeShader = assets.add("voxelize_shader", new Shader("voxelize.vert", "voxelize.geom", "voxelize.frag"));
+	visualizeShader = assets.add("visualize_shader", new Shader("showvoxels.vert", "showvoxels.frag"));
+	voxelConeShader = assets.add("voxel_cone_shader", new Shader("voxelcone.vert", "voxelcone.frag"));
+	shadowShader = assets.add("shadow_shader", new Shader("shadow.vert", "shadow.frag"));
+
+	mipmapShader = assets.add("mipmap_shader", new Shader("mipmap.comp"));
 
 	bunnyMesh = loadMesh("../assets/models/bunny.obj");
 	cubeMesh = loadMesh("../assets/models/cube.obj");
@@ -216,10 +190,10 @@ void loadAssets() {
 void initScene() {
 
 	scene.light = SpotLight(
-		vec3(0, 0.99, 0),
+		vec3(0, 0.8, 0),
 		vec3(0, -1, 0),
 		vec3(1,1,1),
-		90.f, 2.f
+		110.f, 2.f
 		);
 
 	scene.add(Object(
@@ -231,7 +205,7 @@ void initScene() {
 		quat(vec3(0,0,0))
 		));
 	scene.add(Object(
-		"floor",
+		"ceiling",
 		planeMesh,
 		Material(vec3(1)),
 		vec3(0,1,0),
@@ -239,7 +213,7 @@ void initScene() {
 		quat(vec3(pi,0,0))
 		));
 	scene.add(Object(
-		"ceiling",
+		"wall",
 		planeMesh,
 		Material(vec3(1)),
 		vec3(0,0,-1),
@@ -276,7 +250,7 @@ void initScene() {
 	scene.add(Object(
 		"bunny",
 		bunnyMesh, 
-		Material(vec3(.7,.7,.7)), 
+		Material(vec3(1)), 
 		vec3(.2,-1,.2), 
 		vec3(.7,.7,.7),
 		quat(vec3(0,0,0))
@@ -285,7 +259,7 @@ void initScene() {
 	scene.add(Object(
 		"cube",
 		cubeMesh, 
-		Material(vec3(.8,.8,.8)), 
+		Material(vec3(1)), 
 		vec3(-.5,-.7,-.5), 
 		vec3(.5,.2,.5),
 		quat(vec3(0,.5,0))
@@ -345,11 +319,8 @@ int main() {
 
 	double prevTime = System::time();
 
-	initChangeHandle();
-
 	while(!Window::shouldClose()) {
-
-		checkShaderChanges();
+		assets.update();
 
 		double time = System:: time();
 		float timeDelta = (float)(time - prevTime);
@@ -364,7 +335,7 @@ int main() {
 		}
 
 		if (Input::getKey(KEY_ESCAPE)) {
-			// Window::setShouldClose(true);
+			Window::setShouldClose(true);
 		}
 
 		int lock = Input::getKey(KEY_SPACE);
@@ -421,28 +392,31 @@ int main() {
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		activeShader->bind();
-		activeShader->set("u_project", cam.final);
-		activeShader->set("u_cameraPos", cam.pos);
+		if (!toggleVoxels) {
 
-		activeShader->set("u_voxelScale", voxelScale);
-		activeShader->set("u_voxelCount", voxelCount);
-		activeShader->set("u_offsetPos", offsetPos);
-		activeShader->set("u_offsetDist", offsetDist);
 
-		for (int i = 0; i < 6; i++) {
-			voxelTextures[i]->bind(i);
-			activeShader->setIndex("u_voxelTexture", i, i);
-		}
+			activeShader->bind();
+			activeShader->set("u_project", cam.final);
+			activeShader->set("u_cameraPos", cam.pos);
 
-		activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
-		activeShader->set("u_shadowBias", shadowBias);
-		shadowMap->t->bind(6);
-		activeShader->set("u_shadowMap", 6);
+			activeShader->set("u_voxelScale", voxelScale);
+			activeShader->set("u_voxelCount", voxelCount);
+			activeShader->set("u_offsetPos", offsetPos);
+			activeShader->set("u_offsetDist", offsetDist);
 
-		scene.draw(activeShader);
+			for (int i = 0; i < 6; i++) {
+				voxelTextures[i]->bind(i);
+				activeShader->setIndex("u_voxelTexture", i, i);
+			}
 
-		if (toggleVoxels) {
+			activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
+			activeShader->set("u_shadowBias", shadowBias);
+			shadowMap->t->bind(6);
+			activeShader->set("u_shadowMap", 6);
+
+			scene.draw(activeShader);
+
+		} else {
 			showVoxels();
 		}
 
@@ -473,7 +447,10 @@ int main() {
 		ImGui::End();
 
 		ImGui::Begin("Renderer");
-		ImGui::SliderFloat("LOD", &voxelLod, 0.f, 10.f);
+		ImGui::Checkbox("voxelize", &dynamidVoxelize);
+		ImGui::Checkbox("custom mipmap", &customMipmap);
+		ImGui::SliderFloat("LOD", &voxelLod, 0.f, 7.f, "%.0f");
+		ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
 		ImGui::Checkbox("show voxels", &toggleVoxels);
 		ImGui::SliderFloat("Offset Pos", &offsetPos, -5.f, 5.f, "%.5f");
 		ImGui::SliderFloat("Offset Dist", &offsetDist, 0.0f, 5.f, "%.5f");

@@ -5,6 +5,52 @@
 #include <unordered_map>
 
 #include "utils.h"
+#include "window.h"
+
+
+
+struct Asset {
+	vector<string> files;
+	double loadTime = -100.0;
+
+	virtual void loadImpl() {
+
+	}
+
+	void load() {
+		double currTime = System::time();
+		if (currTime - loadTime > 1.0) {
+			loadImpl();
+			loadTime = currTime;
+		}
+	}
+};
+
+struct AssetStore {
+	std::unordered_map<string, Asset*> assets;
+	std::unordered_map<string, Asset*> deps;
+
+	AssetStore() {
+		init();
+	}
+
+	void init();
+
+	void update();
+
+	template<typename T>
+	T *add(const string &name, T* asset) {
+		for (string dep: asset->files) {
+			deps[dep] = (Asset*)asset;
+		}
+		assets[name] = (Asset*)asset;
+		return asset;
+	}
+
+	Asset *get(const string &name) {
+		return assets[name];
+	}
+};
 
 struct Texture {
 	u32 id;
@@ -22,10 +68,10 @@ struct Texture {
 		glTexParameteri(type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
 
 		glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		// glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+		glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 		u32 levels = (u32)std::ceil(std::log2(size))+1;
-		levels = 7;
 		LOG("size: ", size, " levels: ", levels);
 		glTexStorage3D(type, levels, GL_RGBA8, size, size, size);
 		t->id = id;
@@ -100,80 +146,83 @@ struct Framebuffer {
 
 };
 
-struct Shader {
+struct Shader: Asset {
 	int id = 0;
 	string vpath, gpath, fpath;
 
 	Shader() {}
+	Shader(const string &cpath);
 	Shader(const string &vpath, const string &fpath);
 	Shader(const string &vpath, const string &gpath, const string &fpath);
 
-	void load();
+	void loadImpl();
 
 	void bind();
 
-	void set(u32 id, const int *value, int count) {
-		glUniform1iv(id, count, value);
+	void dispatch(u32 sx, u32 sy, u32 sz);
+
+	void set(u32 uid, const int *value, int count) {
+		glUniform1iv(uid, count, value);
 	}
 
-	void set(u32 id, const float *value, int count) {
-		glUniform1fv(id, count, value);
+	void set(u32 uid, const float *value, int count) {
+		glUniform1fv(uid, count, value);
 	}
 
-	void set(u32 id, const vec2* value, int count) {
-		glUniform2fv(id, count, (const float*)value);
+	void set(u32 uid, const vec2* value, int count) {
+		glUniform2fv(uid, count, (const float*)value);
 	}
 
-	void set(u32 id, const vec3* value, int count) {
-		glUniform3fv(id, count, (const float *)value);
+	void set(u32 uid, const vec3* value, int count) {
+		glUniform3fv(uid, count, (const float *)value);
 	}
 
-	void set(u32 id, const vec4* value, int count) {
-		glUniform4fv(id, count, (const float *)value);
+	void set(u32 uid, const vec4* value, int count) {
+		glUniform4fv(uid, count, (const float *)value);
 	}
 
-	void set(u32 id, const mat2* value, int count) {
-		glUniformMatrix2fv(id, count, GL_FALSE, (const float *)value);
+	void set(u32 uid, const mat2* value, int count) {
+		glUniformMatrix2fv(uid, count, GL_FALSE, (const float *)value);
 	}
 
-	void set(u32 id, const mat3* value, int count) {
-		glUniformMatrix3fv(id, count, GL_FALSE, (const float *)value);
+	void set(u32 uid, const mat3* value, int count) {
+		glUniformMatrix3fv(uid, count, GL_FALSE, (const float *)value);
 	}
 
-	void set(u32 id, const mat4* value, int count) {
-		glUniformMatrix4fv(id, count, GL_FALSE, (const float *)value);
+	void set(u32 uid, const mat4* value, int count) {
+		glUniformMatrix4fv(uid, count, GL_FALSE, (const float *)value);
 	}
 
-	void set(u32 id, int value) {
-		glUniform1i(id, value);
+	void set(u32 uid, int value) {
+		glUniform1i(uid, value);
 	}
 
-	void set(u32 id, float value) {
-		glUniform1f(id, value);
+	void set(u32 uid, float value) {
+		glUniform1f(uid, value);
 	}
 
-	void set(u32 id, const vec2& value) {
-		glUniform2fv(id, 1, &value[0]);
+	void set(u32 uid, const vec2& value) {
+		glUniform2fv(uid, 1, &value[0]);
 	}
 
-	void set(u32 id, const vec3& value) {
-		glUniform3fv(id, 1, &value[0]);
+	void set(u32 uid, const vec3& value) {
+		glUniform3fv(uid, 1, &value[0]);
 	}
 
-	void set(u32 id, const vec4& value) {
-		glUniform4fv(id, 1, &value[0]);
+	void set(u32 uid, const vec4& value) {
+		glUniform4fv(uid, 1, &value[0]);
 	}
 
-	void set(u32 id, const mat2& value) {
-		glUniformMatrix2fv(id, 1, GL_FALSE, &value[0][0]);
+	void set(u32 uid, const mat2& value) {
+		glUniformMatrix2fv(uid, 1, GL_FALSE, &value[0][0]);
 	}
 
-	void set(u32 id, const mat3& value) {
-		glUniformMatrix3fv(id, 1, GL_FALSE, &value[0][0]);
+	void set(u32 uid, const mat3& value) {
+		glUniformMatrix3fv(uid, 1, GL_FALSE, &value[0][0]);
 	}
 
-	void set(u32 id, const mat4& value) {
-		glUniformMatrix4fv(id, 1, GL_FALSE, &value[0][0]);
+	void set(u32 uid, const mat4& value) {
+		glUniformMatrix4fv(uid, 1, GL_FALSE, &value[0][0]);
 	}
 
 	template <class T>
@@ -230,24 +279,9 @@ struct Mesh {
 	void dispose();
 };
 
-struct AssetStore {
-	std::unordered_map<string, void*> assets;
 
-	void add(const string &name, void* asset) {
-		assets[name] = asset;
-	}
-
-	void *get(const string &name) {
-		return assets[name];
-	}
-};
 
 
 Mesh *loadMesh(const string &path);
 
-
 Texture loadTexture(const string &path);
-
-// Texture loadTexture(string path, TextureFilter filter, TextureWrap wrap, bool mipmap);
-// Texture loadTextureArray(string path, int depth, TextureFilter filter, TextureWrap wrap, bool mipmap);
-// Texture loadCubemap(string path, TextureFilter filter, TextureWrap wrap, bool mipmap);

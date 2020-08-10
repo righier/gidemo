@@ -56,8 +56,33 @@ u32 loadShader(const string &path, GLenum type) {
 	return shader;
 }
 
+u32 loadComputeShader(const string &cpath) {
+	LOG("load shader:", cpath);
+
+	u32 comp = loadShader(cpath, GL_COMPUTE_SHADER);
+	if (comp == 0) return 0;
+
+	u32 id = glCreateProgram();
+
+	glAttachShader(id, comp);
+	glLinkProgram(id);
+
+	if (!checkAndLogProgramError(id)) {
+		LOG("ERROR COMPUTE LINK");
+		glUseProgram(0);
+		glDeleteProgram(id);
+		id = 0;
+	}
+
+	glDetachShader(id, comp);
+	glDeleteShader(comp);
+	glUseProgram(0);
+	return id;
+}
+
 u32 loadProgram(const string &vpath, const string &gpath, const string &fpath) {
 	LOG("load shader:", vpath, fpath);
+	if (fpath=="") return loadComputeShader(vpath);
 
 	u32 vert = loadShader(vpath, GL_VERTEX_SHADER);
 	u32 geom = loadShader(gpath, GL_GEOMETRY_SHADER);
@@ -115,12 +140,23 @@ Shader(vpath, "", fpath) {
 
 }
 
-Shader::Shader(const string &vpath, const string &gpath, const string &fpath): 
-id(0), vpath(vpath), gpath(gpath), fpath(fpath) {
-	load();
+Shader::Shader(const string &cpath):
+Shader(cpath, "", "") {
+
 }
 
-void Shader::load() {
+Shader::Shader(const string &vpath, const string &gpath, const string &fpath): 
+id(0), vpath(vpath), gpath(gpath), fpath(fpath) {
+	files.push_back(vpath);
+	files.push_back(gpath);
+	files.push_back(fpath);
+	load();
+	if (id == 0) {
+		exit(-1);
+	}
+}
+
+void Shader::loadImpl() {
 	u32 newId = loadProgram(vpath, gpath, fpath);
 	if (newId) {
 		dispose();
@@ -130,6 +166,10 @@ void Shader::load() {
 
 void Shader::bind() {
 	glUseProgram(id);
+}
+
+void Shader::dispatch(u32 sx, u32 sy, u32 sz) {
+	glDispatchCompute(sx, sy, sz);
 }
 
 void Shader::dispose() {
