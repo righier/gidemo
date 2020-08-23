@@ -41,5 +41,6 @@ namespace System {
 	void init(int gl_major, int gl_minor);
 	void exit(int code);
 	double time();
+  void sleep(double t);
 }
 

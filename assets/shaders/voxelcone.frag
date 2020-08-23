@@ -434,7 +434,7 @@ vec3 traceSpecular() {
   vec3 dir = reflect(camDir, normal);
 
 
-  const float coneAngle = radians(10.f);
+  const float coneAngle = radians(5.f);
 
   pos += normal * voxelSize * u_offsetPos;
 
@@ -495,6 +495,8 @@ void main() {
   // color = specular;
   vec3 diffuseLight = indirectLight + spot;
   color = u_diffuse * (diffuseLight * 0.7) + specular * 0.3;
+
+  color = indirectLight;
 
   // vec4 voxelDiffuse = textureLod(u_voxelTexture, toVoxel(a_pos), 0.1);
   // color = vec3(voxelDiffuse);

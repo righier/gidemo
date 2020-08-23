@@ -60,6 +60,8 @@ bool customMipmap = true;
 float voxelLod = 0;
 int voxelIndex = 0;
 
+bool lockfps = false;
+int targetfps = 5;
 
 void initVoxelize() {
 	for (int i = 0; i < 6; i++) {
@@ -270,7 +272,7 @@ void initScene() {
 int main() {
 	System::init(4, 6);
 
-	Window::create(1280, 720, "title", Window::WINDOWED, false);
+	Window::create(1280, 720, "title", Window::WINDOWED, true);
 
 	Window::update();
 
@@ -325,6 +327,11 @@ int main() {
 		double time = System:: time();
 		float timeDelta = (float)(time - prevTime);
 		prevTime = time;
+
+    double targetDelta = 1.0 / (double)targetfps;
+    if (lockfps && timeDelta < targetDelta) {
+      System::sleep(targetDelta - timeDelta);
+    }
 
 		if (time - oldTime >= 1.0) {
 			double delta = time - oldTime;
@@ -447,6 +454,8 @@ int main() {
 		ImGui::End();
 
 		ImGui::Begin("Renderer");
+    ImGui::Checkbox("lock FPS", &lockfps);
+    ImGui::SliderInt("FPS target", &targetfps, 1, 120);
 		ImGui::Checkbox("voxelize", &dynamidVoxelize);
 		ImGui::Checkbox("custom mipmap", &customMipmap);
 		ImGui::SliderFloat("LOD", &voxelLod, 0.f, 7.f, "%.0f");

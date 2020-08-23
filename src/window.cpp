@@ -193,4 +193,17 @@ namespace System {
 	double time() {
 		return glfwGetTime();
 	}
+
+#ifdef _WIN32
+#include <windows.h>
+  void sleep(double t) {
+    Sleep(t * 1000);
+  }
+#else
+#include <unistd.h>
+  void sleep(double t) {
+    usleep(t * 1000000);
+  }
+#endif
+
 }
