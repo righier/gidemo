@@ -91,7 +91,7 @@ void Mesh::dispose() {
 }
 
 bool operator==(const fastObjIndex &a, const fastObjIndex &b) {
-	return a.p == b.p and a.t == b.t and a.n == b.n;
+	return a.p == b.p && a.t == b.t && a.n == b.n;
 }
 
 Mesh *loadMesh(const string &path) {

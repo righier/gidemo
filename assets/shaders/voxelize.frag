@@ -6,6 +6,7 @@ in vec4 b_posls;
 in vec2 b_uv;
 
 uniform vec3 u_diffuse;
+uniform vec3 u_emission;
 
 uniform mat4 u_lightProj;
 uniform float u_shadowBias;
@@ -98,7 +99,7 @@ void main(){
 
 	// if (!insideVoxel(posVoxelSpace)) return;
 
-	vec3 color = u_diffuse * spotlight();
+	vec3 color = u_diffuse * spotlight() + u_emission;
 	// color = u_diffuse;
 	// color = b_normal * 0.5 + 0.5;
 

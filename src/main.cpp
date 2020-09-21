@@ -44,7 +44,7 @@ Mesh *bunnyMesh, *cubeMesh, *planeMesh, *sphereMesh;
 
 Shader *activeShader;
 
-float shadowBias = 0.00007;
+float shadowBias = 0.00007f;
 Framebuffer *shadowMap;
 
 Camera cam;
@@ -386,7 +386,7 @@ int main() {
 		voxelize();
 
 		Framebuffer::reset();
-		glViewport(0, 0, winSize.x, winSize.y);
+		glViewport(0, 0, (int)winSize.x, (int)winSize.y);
 		glEnable(GL_BLEND);
 
 		glEnable(GL_CULL_FACE);
@@ -435,8 +435,12 @@ int main() {
 			for (u32 i = 0; i < scene.objects.size(); i++) {
 				auto &obj = scene.objects[i];
 				if (ImGui::TreeNode(obj.name.c_str())) {
-					ImGui::DragFloat3("Pos", &obj.pos.x, 0.1f);
-					ImGui::DragFloat3("Scale", &obj.scale.x, 0.1f);
+					ImGui::DragFloat3("Pos", &obj.pos.x, 0.05f);
+					ImGui::DragFloat3("Scale", &obj.scale.x, 0.05f);
+					ImGui::ColorEdit3("Diffuse", (float *)&obj.mat.diffuse);
+					ImGui::ColorEdit3("Emission", (float *)&obj.mat.emission);
+					ImGui::SliderFloat("Roughness", &obj.mat.rough, 0.f, 1.f);
+					ImGui::SliderFloat("Metalness", &obj.mat.metal, 0.f, 1.f);
 					ImGui::TreePop();
 				}
 			}

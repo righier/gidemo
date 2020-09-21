@@ -81,7 +81,9 @@ void main() {
   int i = 0;
   int maxi = 1000;
   while (insideVoxel(pos) && color.a < 0.99f) {
-    // vec4 cc = textureLod(u_voxelTexture[u_voxelIndex], pos, u_voxelLod);
+
+    // vec3 pp = vec3(ivec3(pos*dim)) / dim + voxelSize*(1 << lod) / 2;
+    // vec4 cc = textureLod(u_voxelTexture[u_voxelIndex], pp, u_voxelLod);
     vec4 cc = texelFetch(u_voxelTexture[u_voxelIndex], ivec3(pos*dim), lod);
     // vec4 cc = fetch(dir, pos, u_voxelLod);
     color += (1.0f - color.a) * vec4(cc.xyz, 1.0f) * cc.a;

@@ -90,7 +90,7 @@ u32 loadProgram(const string &vpath, const string &gpath, const string &fpath) {
 
 	u32 id;
 
-	if (vert and frag) {
+	if (vert && frag) {
 		LOG("compiled.");
 
 		id = glCreateProgram();

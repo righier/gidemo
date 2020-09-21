@@ -39,6 +39,20 @@ layout(location = 0) out vec3 o_albedo;
 
 float voxelSize = 1.0f / float(u_voxelCount);
 
+//return the vector component of maximum magnitude
+vec3 getMaxComponent(vec3 v) {
+  #if 1
+  vec3 q = abs(v);
+  if (q.x > q.y && q.x > q.z) return vec3(1,0,0);
+  else if (q.y > q.z) return vec3(0,1,0);
+  else return vec3(0,0,1);
+  #else
+  vec3 q = abs(v);
+  float m = max(q.x, max(q.y, q.z));
+  return vec3(equal(q, vec3(m)));
+  #endif
+}
+
 vec3 ortho(vec3 v) {
   vec3 w = normalize(v + vec3(0,0,1));
   return cross(v, w);
@@ -50,6 +64,13 @@ bool insideVoxel(vec3 pos) {
 
 vec3 toVoxel(vec3 pos) {
   return pos*(0.5)+0.5;  
+}
+
+float roughnessToAperture(float roughness){
+  roughness = clamp(roughness, 0.0, 1.0);
+  // return tan(0.0003474660443456835 + (roughness * (1.3331290497744692 - (roughness * 0.5040552688878546)))); // <= used in the 64k
+  // return tan(acos(pow(0.244, 1.0 / (clamp(2.0 / max(1e-4, (roughness * roughness)) - 2.0, 4.0, 1024.0 * 16.0) + 1.0))));
+  return clamp(tan((3.141592 * (0.5 * 0.75)) * max(0.0, roughness)), 0.00174533102, 3.14159265359);
 }
 
 vec4 fetch(vec3 dir, vec3 pos, float lod) {
@@ -389,30 +410,82 @@ vec4 traceVoxelCone( vec3 from, vec3 direction, float aperture, float offset, fl
   return max(accumulator, vec4(0.0));
 }
 
-float traceShadowCone(vec3 normal, vec3 from, vec3 to){
-  const float aperture = tan(radians(5.0)),
-  doubledAperture = max(voxelSize, 2.0 * aperture),
+vec4 voxelJitterNoise(vec4 p4){
+  p4 = fract(p4 * vec4(443.897, 441.423, 437.195, 444.129));
+  p4 += dot(p4, p4.wzxy + vec4(19.19));
+  return fract((p4.xxyz + p4.yzzw) * p4.zywx);
+}
 
-  s = 0.5;
+// float rand(vec2 co){
+  // return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); 
+// }
+
+vec3 fixPosToVoxelGrid(vec3 pos, vec3 dir) {
+  vec3 maxComp = getMaxComponent(dir);
+
+  float p = dot(pos, maxComp);
+  float d = dot(dir, maxComp);
+
+  float newDirLen = floor(p*u_voxelCount+sign(d)) / u_voxelCount + voxelSize * 0.5 - p;
+
+  return vec3(sign(d));
+  return vec3(p);
+  return maxComp;
+  return dir / d * newDirLen * u_voxelCount * 0.5 + 0.5;
+
+}
+
+vec3 debugShadowCone(vec3 normal, vec3 from, vec3 to) {
   vec3 direction = normalize(to - from);
-  from += direction * voxelSize * 4.0;
+  vec3 offset = fixPosToVoxelGrid(from, normal);
+  return offset;
+}
+
+vec3 debugShadow() {
+  vec3 normal = a_normal;
+  vec3 pos = toVoxel(a_pos);
+  vec3 lightPos = toVoxel(u_lightPos);
+  return debugShadowCone(normal, pos, lightPos);
+}
+
+float traceShadowCone(vec3 normal, vec3 from, vec3 to){
+
+  float aperture = tan(radians(5));
+  float doubledAperture = max(voxelSize, 2.0 * aperture);
+
+  float s = 0.5;
+
+  vec3 direction = normalize(to - from);
+  // from += direction * voxelSize * 4.0 + a_normal * voxelSize * 0.0;
+
+  vec3 offset = fixPosToVoxelGrid(from, direction);
+
+  from += offset;
+
+  return length(offset);
+
   float maxDistance = length(to - from);
   float dist = 0 * voxelSize;
   float accumulator = 0.0;
   // direction /= maxDistance;
   maxDistance = min(maxDistance, 1.41421356237);
-  // dist += voxelJitterNoise(vec4(from.xyz + to.xyz + normal.xyz, tc.x)).x * s * voxelSize;
+
+  // vec2 rc = gl_FragCoord.xy;
+  // dist += voxelJitterNoise(vec4(from.xyz + to.xyz + normal.xyz, rc.x)).x * s * voxelSize;
+
+
   vec3 position = from + (direction * dist);
-  while((accumulator < 1.0) && (dist < maxDistance)){
+  while((accumulator < 1.0)){
     float diameter = max(voxelSize * 0.5, doubledAperture * dist);
-    if (dist+diameter >= maxDistance) break;
+    if (dist + diameter * 1.414>= maxDistance) break;
     float mipMapLevel = max(0.0, log2((diameter * float(u_voxelCount)) + 1.0));
     float cc = fetch(direction, position, mipMapLevel).w;
     accumulator += (1.0 - accumulator) * cc;
     dist += max(diameter, voxelSize) * s;
     position = from + (direction * dist);
   }
-  return 1.0 - accumulator;
+  // return 1.0 - accumulator;
+  return 1.0 - clamp(accumulator, 0.0, 1.0);
   // return clamp(1.0 - accumulator, 0.0, 1.0);
 }
 
@@ -439,9 +512,10 @@ vec3 traceSpecular() {
   pos += normal * voxelSize * u_offsetPos;
 
   float maxdist = sqrt(3.f);
-  float distOffset = voxelSize * 3.0; //u_offsetDist;
+  float distOffset = voxelSize * 1.0; //u_offsetDist;
 
   float aperture = tan(coneAngle/2.0f);
+  aperture = roughnessToAperture(0.2);
 
   return traceVoxelCone(pos, dir, aperture, distOffset, maxdist).xyz;
 
@@ -459,7 +533,7 @@ vec3 spotlight() {
   intensity *= max(0, dot(a_normal, lightDir));
   // intensity *= 1.0 - min(1.0f, traceShadow(a_pos, u_lightPos));
   // intensity *= 1.0 - min(1.0f, shadow());
-  if (intensity > 0.01) {
+  if (intensity > 0.0001) {
     intensity *= traceShadow();
   }
   return u_lightColor * intensity;
@@ -479,24 +553,28 @@ void main() {
 
 
   // vec3 directLight = spotlight();
-  vec3 indirectLight = indirectDiffuse();
+  // vec3 indirectLight = indirectDiffuse();
   vec3 specular = traceSpecular();
 
   // float shadow2 = 1.0 - shadow();
-  vec3 spot = spotlight();
 
-  vec3 color = u_diffuse;
+  // vec3 spot = spotlight();
+  // vec3 spot = debugShadow();
+
+  vec3 color;
+  // vec3 color = u_diffuse;
 
   // color = directLight + indirectLight;
   // color *= u_diffuse;
   // color = specular * shadow;
   // color = spot * u_diffuse + specular;
 
-  // color = specular;
-  vec3 diffuseLight = indirectLight + spot;
-  color = u_diffuse * (diffuseLight * 0.7) + specular * 0.3;
+  color = specular * u_diffuse;
+  // vec3 diffuseLight = indirectLight + spot;
+  // color = u_diffuse * (diffuseLight * 0.7) + specular * 0.3;
 
-  color = indirectLight;
+  // color = specular;
+  // color = spot;
 
   // vec4 voxelDiffuse = textureLod(u_voxelTexture, toVoxel(a_pos), 0.1);
   // color = vec3(voxelDiffuse);
