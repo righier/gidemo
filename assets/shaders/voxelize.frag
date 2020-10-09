@@ -94,12 +94,20 @@ void imageAtomicAvg(layout(r32ui) coherent volatile uimage3D imagUI, ivec3 coord
 
 void main(){
 
+	#if 0
+	vec3 albedo = u_diffuse;
+	vec3 emission = u_emission;
+	#else
+	vec3 albedo = pow(u_diffuse, vec3(2.2));
+	vec3 emission = pow(u_emission, vec3(2.2));
+	#endif
+
 	vec3 posVoxelSpace = toVoxel(b_pos) * 0.999f;
 	ivec3 dim = imageSize(u_voxelTexture[0]);
 
 	// if (!insideVoxel(posVoxelSpace)) return;
 
-	vec3 color = u_diffuse * spotlight() + u_emission;
+	vec3 color = albedo * spotlight() + emission;
 	// color = u_diffuse;
 	// color = b_normal * 0.5 + 0.5;
 

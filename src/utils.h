@@ -4,11 +4,17 @@
 #include <string>
 #include <vector>
 
+#pragma warning(push)
+#pragma warning(disable: 4201)
+#pragma warning(disable: 4127)
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#pragma warning(pop)
+
 
 using glm::vec2;
 using glm::vec3;

@@ -6,7 +6,6 @@
 struct Material {
 	vec3 diffuse;
 	vec3 emission;
-	float opacity;
 	float metal;
 	float rough;
 
@@ -18,7 +17,10 @@ struct Material {
 		shader->set("u_rough", rough);
 	}
 
-	Material(vec3 diffuse): diffuse(diffuse), emission(vec3(0)) {
+	Material(vec3 diffuse): diffuse(diffuse), emission(vec3(0)), metal(0), rough(1) {
+	}
+
+	Material(vec3 diffuse, vec3 emission, float metal, float rough): diffuse(diffuse), emission(emission), metal(metal), rough(rough) {
 	}
 };
 

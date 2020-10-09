@@ -88,7 +88,7 @@ u32 loadProgram(const string &vpath, const string &gpath, const string &fpath) {
 	u32 geom = loadShader(gpath, GL_GEOMETRY_SHADER);
 	u32 frag = loadShader(fpath, GL_FRAGMENT_SHADER);
 
-	u32 id;
+	u32 id = 0;
 
 	if (vert && frag) {
 		LOG("compiled.");
@@ -117,6 +117,7 @@ u32 loadProgram(const string &vpath, const string &gpath, const string &fpath) {
 		}
 
 	} else {
+		return id;
 		// exit(-1);
 	}
 

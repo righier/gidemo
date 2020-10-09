@@ -7,7 +7,9 @@
 #include "utils.h"
 #include "window.h"
 
-
+static inline string getAssetsFolder() {
+	return "../assets/";
+}
 
 struct Asset {
 	vector<string> files;
@@ -50,6 +52,7 @@ struct AssetStore {
 	Asset *get(const string &name) {
 		return assets[name];
 	}
+
 };
 
 struct Texture {

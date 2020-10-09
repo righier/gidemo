@@ -7,7 +7,8 @@
 
 bool readFile(const std::string &path, std::string &s) {
 	std::FILE* f;
-	f = fopen(path.c_str(), "rb");
+	// f = fopen(path.c_str(), "rb");
+	fopen_s(&f, path.c_str(), "rb");
 	if (!f) return false;
 
 	fseek(f, 0, SEEK_END);

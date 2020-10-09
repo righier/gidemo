@@ -1,10 +1,9 @@
-#include "assets.h"
-#include "window.h"
-#include "utils.h"
-
 #include <queue>
 #include <windows.h>
 
+#include "assets.h"
+#include "window.h"
+#include "utils.h"
 
 
 std::queue<string> fileChanges;
@@ -44,7 +43,7 @@ void AssetStore::init() {
 
 	mutex = CreateMutex(NULL, FALSE, NULL);
 
-	changeHandle = CreateFile("C:/users/ermanno/desktop/gidemo/assets/shaders", 
+	changeHandle = CreateFile("C:/users/ermanno/desktop/gidemo/bin/../assets/shaders", 
 		FILE_LIST_DIRECTORY,
 		FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE,
 		NULL, 

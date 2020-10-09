@@ -40,7 +40,7 @@ Texture *voxelTextures[6];
 
 Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
 Shader *mipmapShader;
-Mesh *bunnyMesh, *cubeMesh, *planeMesh, *sphereMesh;
+Mesh *bunnyMesh, *cubeMesh, *planeMesh, *sphereMesh, *lpsphereMesh;
 
 Shader *activeShader;
 
@@ -54,7 +54,7 @@ float voxelScale = 1.01f;
 float offsetPos = 0.0f;
 float offsetDist = 0.25f;
 
-bool dynamidVoxelize = true;
+bool dynamicVoxelize = true;
 bool toggleVoxels = false;
 bool customMipmap = true;
 float voxelLod = 0;
@@ -66,6 +66,12 @@ int targetfps = 5;
 void initVoxelize() {
 	for (int i = 0; i < 6; i++) {
 		voxelTextures[i] = Texture::init3D(voxelCount);
+	}
+}
+
+void disposeVoxels() {
+	for (int i = 0; i < 6; i++) {
+		voxelTextures[i]->dispose();
 	}
 }
 
@@ -89,7 +95,7 @@ void renderShadowMap() {
 
 void voxelize() {
 
-	if (!dynamidVoxelize) return;
+	if (!dynamicVoxelize) return;
 
 	voxelizeShader->bind();
 
@@ -184,7 +190,9 @@ void loadAssets() {
 	bunnyMesh = loadMesh("../assets/models/bunny.obj");
 	cubeMesh = loadMesh("../assets/models/cube.obj");
 	planeMesh = loadMesh("../assets/models/plane.obj");
-	sphereMesh = loadMesh("../assets/models/lp_sphere.obj");
+	lpsphereMesh = loadMesh("../assets/models/lp_sphere.obj");
+	sphereMesh = loadMesh("../assets/models/sphere.obj");
+
 
 	shadowMap = Framebuffer::shadowMap(2048, 2048);
 }
@@ -253,7 +261,7 @@ void initScene() {
 		"bunny",
 		bunnyMesh, 
 		Material(vec3(1)), 
-		vec3(.2,-1,.2), 
+		vec3(.2,-3.,.2), 
 		vec3(.7,.7,.7),
 		quat(vec3(0,0,0))
 		));
@@ -262,10 +270,33 @@ void initScene() {
 		"cube",
 		cubeMesh, 
 		Material(vec3(1)), 
-		vec3(-.5,-.7,-.5), 
+		vec3(-.5,-1.7,-.5), 
 		vec3(.5,.2,.5),
 		quat(vec3(0,.5,0))
 		));
+
+	for (int i = 0; i <= 10; i++) {
+		for (int j = 0; j <= 10; j++) {
+			float rough = (float)i/10.f;
+			float metal = (float)j/10.f;
+
+			float scale = 0.07f;
+			float ps = 0.8f;
+			float x = i*.2f*ps - ps;
+			float z = j*.2f*ps - ps;
+			float y = -0.8f;
+
+			scene.add(Object(
+				"sphere" + std::to_string(i) + "_" + std::to_string(j),
+				sphereMesh,
+				Material(vec3(1), vec3(0), metal, rough),
+				vec3(x, y, z),
+				vec3(scale, scale, scale),
+				quat(vec3(0,0,0))
+				));
+
+		}
+	}
 
 }
 
@@ -458,15 +489,38 @@ int main() {
 		ImGui::End();
 
 		ImGui::Begin("Renderer");
-    ImGui::Checkbox("lock FPS", &lockfps);
-    ImGui::SliderInt("FPS target", &targetfps, 1, 120);
-		ImGui::Checkbox("voxelize", &dynamidVoxelize);
-		ImGui::Checkbox("custom mipmap", &customMipmap);
-		ImGui::SliderFloat("LOD", &voxelLod, 0.f, 7.f, "%.0f");
-		ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
-		ImGui::Checkbox("show voxels", &toggleVoxels);
-		ImGui::SliderFloat("Offset Pos", &offsetPos, -5.f, 5.f, "%.5f");
-		ImGui::SliderFloat("Offset Dist", &offsetDist, 0.0f, 5.f, "%.5f");
+		ImGui::Checkbox("lock FPS", &lockfps);
+		ImGui::SliderInt("FPS target", &targetfps, 1, 120);
+
+    	int prevVoxelCount = voxelCount;
+    	const char* voxelCounts[] = {"16", "32", "64", "128", "256", "512", "1024"};
+
+    	int currVolumeItem = (int)round(log2(prevVoxelCount/16));
+
+    	ImGui::Combo("Volume Size", &currVolumeItem, voxelCounts, 7);
+    	// ImGui::Combo("Volume Size", &currVolumeItem, [](void *data, int idx, const char **out_text) {
+    		// *out_text = std::to_string((1 << idx) * 16).c_str();
+    		// return true;
+    	// }, NULL, 7);
+
+    	voxelCount = (1 << currVolumeItem) * 16;
+
+    	if (voxelCount != prevVoxelCount) {
+    		LOG("changed voxel count");
+    		disposeVoxels();
+    		initVoxelize();
+    	}
+
+		ImGui::Checkbox("Dynamic Voxelization", &dynamicVoxelize);
+		ImGui::Checkbox("Anisotropic Filtering", &customMipmap);
+		ImGui::Checkbox("Show Voxels", &toggleVoxels);
+		if (toggleVoxels) {
+			ImGui::SliderFloat("LOD", &voxelLod, 0.f, 7.f, "%.0f");
+			ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
+		} else {
+			ImGui::SliderFloat("Offset Pos", &offsetPos, -5.f, 5.f, "%.5f");
+			ImGui::SliderFloat("Offset Dist", &offsetDist, 0.0f, 5.f, "%.5f");
+		}
 		ImGui::End();
 
 		Window::update();

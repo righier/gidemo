@@ -22,20 +22,20 @@ namespace Window {
 		return window;
 	}
 
-	void callbackResize(GLFWwindow *window, int width, int height) {
-		UNUSED(window);
+	void callbackResize(GLFWwindow *_window, int width, int height) {
+		UNUSED(_window);
 		w = width;
 		h = height;
 		glViewport(0, 0, width, height);
 		glScissor(0, 0, width, height);
 	}
 
-	void create(int width, int height, std::string title, int type, bool vsync) {
+	void create(int width, int height, std::string _title, int _type, bool _vsync) {
 		w = width;
 		h = height;
-		Window::title = title;
-		Window::vsync = vsync;
-		Window::type = type;
+		Window::title = _title;
+		Window::vsync = _vsync;
+		Window::type = _type;
 
 		GLFWmonitor *monitor = NULL;
 
@@ -130,9 +130,9 @@ namespace Window {
 	}
 
 	vec2 getSize() {
-		int w, h;
-		glfwGetFramebufferSize(window, &w, &h);
-		return vec2((float)w, (float)h);
+		int ww, hh;
+		glfwGetFramebufferSize(window, &ww, &hh);
+		return vec2((float)ww, (float)hh);
 	}
 
 	int getType() {
@@ -197,7 +197,7 @@ namespace System {
 #ifdef _WIN32
 #include <windows.h>
   void sleep(double t) {
-    Sleep(t * 1000);
+    Sleep((System::DWORD)(t * 1000));
   }
 #else
 #include <unistd.h>
