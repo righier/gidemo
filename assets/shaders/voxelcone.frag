@@ -19,7 +19,7 @@ uniform int u_voxelCount;
 
 uniform vec3 u_cameraPos;
 
-uniform sampler3D u_voxelTexture[6];
+uniform sampler3D u_voxelTexture;
 const ivec3 DIR = ivec3(0, 2, 4);
 
 uniform float u_offsetDist;
@@ -72,15 +72,15 @@ float roughnessToAperture(float roughness){
   roughness = clamp(roughness, 0.0, 1.0);
   // return tan(0.0003474660443456835 + (roughness * (1.3331290497744692 - (roughness * 0.5040552688878546)))); // <= used in the 64k
   // return tan(acos(pow(0.244, 1.0 / (clamp(2.0 / max(1e-4, (roughness * roughness)) - 2.0, 4.0, 1024.0 * 16.0) + 1.0))));
-  return clamp(tan((3.141592 * (0.5 * 0.75)) * max(0.0, roughness)), 0.00174533102, 3.14159265359);
+  return clamp(tan((3.141592 * (0.5 * 0.75)) * roughness), 0.00174533102, 3.14159265359);
 }
 
 
 vec4 fetch(vec3 dir, vec3 pos, float lod) {
   // ivec3 bd = DIR + ivec3(lessThan(dir, vec3(0.0f)));
 
-#if 0
-  return textureLod(u_voxelTexture[0], pos, lod);
+#if 1
+  return textureLod(u_voxelTexture, pos, lod);
 #else
   bvec3 sig = greaterThan(dir, vec3(0.0f));
   vec4 cx = sig.x ? textureLod(u_voxelTexture[1], pos, lod) : textureLod(u_voxelTexture[0], pos, lod);
@@ -125,10 +125,10 @@ float traceShadow(vec3 start, vec3 lightPos) {
   while (dist < lightDist && acc < 1.0) {
     vec3 pos = start + dir * dist;
     float l = pow(dist, 2);
-    float s1 = 0.062 * textureLod(u_voxelTexture[0], toVoxel(pos), 1+0.75 * l).a;
-    float s2 = 0.135 * textureLod(u_voxelTexture[0], toVoxel(pos), 4.5 * l).a;
+    float s1 = 0.062 * textureLod(u_voxelTexture, toVoxel(pos), 1+0.75 * l).a;
+    float s2 = 0.135 * textureLod(u_voxelTexture, toVoxel(pos), 4.5 * l).a;
     // float s = s1 + s2;
-    float s = textureLod(u_voxelTexture[0], toVoxel(pos), 0.0).a;
+    float s = textureLod(u_voxelTexture, toVoxel(pos), 0.0).a;
 
     acc += (1-acc) * s;
     dist += 0.9 * voxelSize * (1 + 0.05 * l);
@@ -723,6 +723,7 @@ void main() {
 
   color += directLight;
   color += ambientLight;
+  color += emission;
 
 
   // color += roughness * diffuseLight * albedo;

@@ -28,7 +28,7 @@ Texture loadTexture(const string &path) {
 
 	float aniso;
 	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &aniso);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, aniso); 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, (int)aniso); 
 
 	stbi_image_free(data);
 

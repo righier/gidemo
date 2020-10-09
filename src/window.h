@@ -26,6 +26,7 @@ namespace Window {
 
 	int getType();
 	bool getVSyncStatus();
+	void setVSyncStatus(bool value);
 
 }
 

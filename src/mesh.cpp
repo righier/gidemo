@@ -119,7 +119,7 @@ Mesh *loadMesh(const string &path) {
 			v.t = vec3(0);
 			v.b = vec3(0);
 
-			found[index] = vertices.size();
+			found[index] = (u32)vertices.size();
 			vertices.push_back(v);
 		}
 

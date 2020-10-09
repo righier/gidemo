@@ -142,6 +142,11 @@ namespace Window {
 	bool getVSyncStatus() {
 		return vsync;
 	}
+
+	void setVSyncStatus(bool value) {
+		vsync = value;
+		glfwSwapInterval(value);
+	}
 }
 
 namespace Input {

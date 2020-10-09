@@ -2,17 +2,9 @@
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 uniform float u_level;
-uniform int u_dir;
 
 uniform sampler3D u_src;
 layout(RGBA8) uniform image3D u_dest;
-
-const ivec3 offsets[9] = {
-	ivec3(1,0,0), ivec3(0,1,0), ivec3(0,0,1),
-	ivec3(0,1,0), ivec3(1,0,0), ivec3(0,0,1),
-	ivec3(0,0,1), ivec3(1,0,0), ivec3(0,1,0),
-};
-
 
 const ivec3 off[8] = {
 	ivec3(0,0,0),
@@ -29,85 +21,13 @@ void main() {
 	ivec3 coords = ivec3(gl_GlobalInvocationID);
 	ivec3 pos = coords*2;
 
-	/*
-	for (int z = 0; z < 2; z++) {
-		for (int y = 0; y < 2; y++) {
-			ivec3 p1 = pos + zoff*z + yoff*y;
-			ivec3 p2 = p1 + xoff;
-
-			vec4 c1 = texelFetch(u_src, p1, int(u_level));
-			vec4 c2 = texelFetch(u_src, p2, int(u_level));
-
-			vec4 cc = (1-flip)? (c2+(1.-c2.w)*c1) :(c1+(1.-c1.w)*c2);
-			cc.w = min(1.0, c1.w+c2.w);
-			color += cc;
-		}
-	}
-*/
-
-
-	vec4 vals[8];
+	vec4 color = vec4(0);
 
 	for (int i = 0; i < 8; i++) {
-		vals[i] = texelFetch(u_src, pos+off[i], int(u_level));
+		color += texelFetch(u_src, pos+off[i], int(u_level));
 	};
 
+	color /= 8.0f;
 
-	vec4 color = vec4(0);
-	if (u_dir == 0) {
-		color = 
-			vals[1] + vals[0] * (1. - vals[1].w) + 
-			vals[3] + vals[2] * (1. - vals[3].w) + 
-			vals[5] + vals[4] * (1. - vals[5].w) + 
-			vals[7] + vals[6] * (1. - vals[7].w);
-	} else if (u_dir == 1) {
-		color = 
-			vals[0] + vals[1] * (1. - vals[0].w) + 
-			vals[2] + vals[3] * (1. - vals[2].w) + 
-			vals[4] + vals[5] * (1. - vals[4].w) + 
-			vals[6] + vals[7] * (1. - vals[6].w);
-	} else if (u_dir == 2) {
-		color = 
-			vals[2] + vals[0] * (1. - vals[2].w) + 
-			vals[3] + vals[1] * (1. - vals[3].w) + 
-			vals[6] + vals[4] * (1. - vals[6].w) + 
-			vals[7] + vals[5] * (1. - vals[7].w);
-	} else if (u_dir == 3) {
-		color = 
-			vals[0] + vals[2] * (1. - vals[0].w) + 
-			vals[1] + vals[3] * (1. - vals[1].w) + 
-			vals[4] + vals[6] * (1. - vals[4].w) + 
-			vals[5] + vals[7] * (1. - vals[5].w);
-	} else if (u_dir == 4) {
-		color = 
-			vals[4] + vals[0] * (1. - vals[4].w) + 
-			vals[5] + vals[1] * (1. - vals[5].w) + 
-			vals[6] + vals[2] * (1. - vals[6].w) + 
-			vals[7] + vals[3] * (1. - vals[7].w);
-	} else if (u_dir == 5) {
-		color = 
-			vals[0] + vals[4] * (1. - vals[0].w) + 
-			vals[1] + vals[5] * (1. - vals[1].w) + 
-			vals[2] + vals[6] * (1. - vals[2].w) + 
-			vals[3] + vals[7] * (1. - vals[3].w);
-	}
-	color /= 4.0f;
-	color.w = min(1.0f, color.w);
-  // base pixel colour for image
-  // vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0);
-  // get index in global work group i.e x,y position
-  // ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
-  
-  //
-  // interesting stuff happens here later
-  //
-  
-  // output to a specific pixel in the image
-  // imageStore(img_output, pixel_coords, pixel);
-
-
-
-  // vec4 col = textureLod(u_src, pos, u_level);
-  imageStore(u_dest, ivec3(coords), color);
-
+	imageStore(u_dest, ivec3(coords), color);
 }

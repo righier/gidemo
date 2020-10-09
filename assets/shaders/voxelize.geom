@@ -32,3 +32,18 @@ void main(){
 	}
     EndPrimitive();
 }
+
+
+/*
+// hPixel = dimensions of half a pixel cell    
+// Compute equations of the planes through the two edges  
+vec3 plane[2];  
+plane[0] = cross(currentPos.xyw - prevPos.xyw, prevPos.xyw);  
+plane[1] = cross(nextPos.xyw - currentPos.xyw, currentPos.xyw);    
+// Move the planes by the appropriate semidiagonal  
+plane[0].z -= dot(hPixel.xy, abs(plane[0].xy));  
+plane[1].z -= dot(hPixel.xy, abs(plane[1].xy));      
+// Compute the intersection point of the planes.  
+float4 finalPos;  
+finalPos.xyw = cross(plane[0], plane[1]); 
+*/

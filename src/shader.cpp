@@ -57,7 +57,7 @@ u32 loadShader(const string &path, GLenum type) {
 }
 
 u32 loadComputeShader(const string &cpath) {
-	LOG("load shader:", cpath);
+	LOG("load compute shader:", cpath);
 
 	u32 comp = loadShader(cpath, GL_COMPUTE_SHADER);
 	if (comp == 0) return 0;

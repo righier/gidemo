@@ -36,7 +36,7 @@ Scene scene;
 AssetStore assets;
 
 // Texture *voxelTexture;
-Texture *voxelTextures[6];
+Texture *voxelTexture;
 
 Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
 Shader *mipmapShader;
@@ -56,23 +56,19 @@ float offsetDist = 0.25f;
 
 bool dynamicVoxelize = true;
 bool toggleVoxels = false;
-bool customMipmap = true;
+bool customMipmap = false;
 float voxelLod = 0;
-int voxelIndex = 0;
 
 bool lockfps = false;
+bool vsyncStatus = false;
 int targetfps = 5;
 
 void initVoxelize() {
-	for (int i = 0; i < 6; i++) {
-		voxelTextures[i] = Texture::init3D(voxelCount);
-	}
+	voxelTexture = Texture::init3D(voxelCount);
 }
 
 void disposeVoxels() {
-	for (int i = 0; i < 6; i++) {
-		voxelTextures[i]->dispose();
-	}
+	voxelTexture->dispose();
 }
 
 void renderShadowMap() {
@@ -108,48 +104,41 @@ void voxelize() {
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 	// glEnable(GL_MULTISAMPLE);
 
-	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
-	voxelizeShader->set("u_shadowBias", shadowBias);
- 	shadowMap->t->bind(6);
-	voxelizeShader->set("u_shadowMap", 6);
  
 	voxelizeShader->set("u_voxelScale", voxelScale);
 
-	for (int i = 0; i < 6; i++) {
-		voxelTextures[i]->bind(i);
-		voxelizeShader->setIndex("u_voxelTexture", i, i);
-		voxelTextures[i]->clear(vec4(0,0,0,0));
-		glBindImageTexture(i, voxelTextures[i]->id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-	}
+	voxelTexture->bind(0);
+	voxelizeShader->set("u_voxelTexture", 0);
+	voxelTexture->clear(vec4(0,0,0,0));
+	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
+	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
+	voxelizeShader->set("u_shadowBias", shadowBias);
+ 	shadowMap->t->bind(1);
+	voxelizeShader->set("u_shadowMap", 1);
 
 	scene.draw(voxelizeShader);
 	//render
 
 	if (customMipmap) {
-		for (int i = 0; i < 6; i++) {
-			mipmapShader->bind();
+		mipmapShader->bind();
 
-			u32 size = voxelCount / 2;
-			u32 level = 1;
-			while (size > 0) {
-				mipmapShader->set("u_level", std::max(0.002f, (float)(level-1)));
-				mipmapShader->set("u_dir", i);
-				mipmapShader->set("u_src", 0);
-				voxelTextures[i]->bind(0);
-				mipmapShader->set("u_dest", 1);
-				glBindImageTexture(1, voxelTextures[i]->id, level, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+		u32 size = voxelCount / 2;
+		u32 level = 1;
+		while (size > 0) {
+			mipmapShader->set("u_level", std::max(0.002f, (float)(level-1)));
+			mipmapShader->set("u_src", 0);
+			voxelTexture->bind(0);
+			mipmapShader->set("u_dest", 1);
+			glBindImageTexture(1, voxelTexture->id, level, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
-				mipmapShader->dispatch(size, size, size);
-				size /= 2;
-				level++;
-			}
+			mipmapShader->dispatch(size, size, size);
+			size /= 2;
+			level++;
 		}
 	} else {
-		for (int i = 0; i < 6; i++) {
-			voxelTextures[i]->bind(i);
-			glGenerateMipmap(GL_TEXTURE_3D);
-		}
+		voxelTexture->bind(0);
+		glGenerateMipmap(GL_TEXTURE_3D);
 	}
 }
 
@@ -161,13 +150,9 @@ void showVoxels() {
 	visualizeShader->set("u_voxelCount", voxelCount);
 	visualizeShader->set("u_cameraPos", cam.pos);
 	visualizeShader->set("u_voxelLod", voxelLod);
-	visualizeShader->set("u_voxelIndex", voxelIndex);
 
-
-	for (int i = 0; i < 6; i++) {
-		voxelTextures[i]->bind(i);
-		visualizeShader->setIndex("u_voxelTexture", i, i);
-	}
+	voxelTexture->bind(0);
+	visualizeShader->set("u_voxelTexture", 0);
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
@@ -303,7 +288,7 @@ void initScene() {
 int main() {
 	System::init(4, 6);
 
-	Window::create(1280, 720, "title", Window::WINDOWED, true);
+	Window::create(1280, 720, "title", Window::WINDOWED, vsyncStatus);
 
 	Window::update();
 
@@ -442,15 +427,13 @@ int main() {
 			activeShader->set("u_offsetPos", offsetPos);
 			activeShader->set("u_offsetDist", offsetDist);
 
-			for (int i = 0; i < 6; i++) {
-				voxelTextures[i]->bind(i);
-				activeShader->setIndex("u_voxelTexture", i, i);
-			}
+			voxelTexture->bind(0);
+			activeShader->set("u_voxelTexture", 0);
 
 			activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
 			activeShader->set("u_shadowBias", shadowBias);
-			shadowMap->t->bind(6);
-			activeShader->set("u_shadowMap", 6);
+			shadowMap->t->bind(1);
+			activeShader->set("u_shadowMap", 1);
 
 			scene.draw(activeShader);
 
@@ -490,6 +473,10 @@ int main() {
 
 		ImGui::Begin("Renderer");
 		ImGui::Checkbox("lock FPS", &lockfps);
+		if (ImGui::Checkbox("vsync", &vsyncStatus)) {
+			Window::setVSyncStatus(vsyncStatus);
+		}
+
 		ImGui::SliderInt("FPS target", &targetfps, 1, 120);
 
     	int prevVoxelCount = voxelCount;
@@ -516,7 +503,6 @@ int main() {
 		ImGui::Checkbox("Show Voxels", &toggleVoxels);
 		if (toggleVoxels) {
 			ImGui::SliderFloat("LOD", &voxelLod, 0.f, 7.f, "%.0f");
-			ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
 		} else {
 			ImGui::SliderFloat("Offset Pos", &offsetPos, -5.f, 5.f, "%.5f");
 			ImGui::SliderFloat("Offset Dist", &offsetDist, 0.0f, 5.f, "%.5f");
