@@ -1,0 +1,12 @@
+#version 460 core
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(RGBA8) uniform image3D u_voxel;
+
+void main() {
+	ivec3 coords = ivec3(gl_GlobalInvocationID);
+
+	vec4 color = imageLoad(u_voxel, ivec3(coords));
+	color.a = float(color.a != 0);
+	imageStore(u_voxel, ivec3(coords), color);
+}

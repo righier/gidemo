@@ -10,10 +10,14 @@ in vec3 a_pos;
 uniform vec3 u_cameraPos;
 uniform int u_voxelCount;
 uniform float u_voxelLod;
+uniform float u_quality;
+uniform bool u_aniso;
+uniform int u_voxelIndex;
 
 float voxelSize = 1.0f / u_voxelCount;
 
 uniform sampler3D u_voxelTexture;
+uniform sampler3D u_voxelTextureAniso[6];
 
 layout(location = 0) out vec3 o_albedo;
 
@@ -54,8 +58,7 @@ void main() {
 
   vec4 color = vec4(0);
 
-  float stepSize = pow(2, u_voxelLod) / (u_voxelCount*10.0f);
-  stepSize = 0.001;
+  float stepSize = pow(2, u_voxelLod) / (u_voxelCount*u_quality);
 
   vec3 pos = start;
 
@@ -67,7 +70,12 @@ void main() {
 
     // vec3 pp = vec3(ivec3(pos*dim)) / dim + voxelSize*(1 << lod) / 2;
     // vec4 cc = textureLod(u_voxelTexture[u_voxelIndex], pp, u_voxelLod);
-    vec4 cc = texelFetch(u_voxelTexture, ivec3(pos*dim), lod);
+    vec4 cc;
+    if (lod > 0 && u_aniso) {
+      cc = texelFetch(u_voxelTextureAniso[u_voxelIndex], ivec3(pos*dim), lod-1);
+    } else {
+      cc = texelFetch(u_voxelTexture, ivec3(pos*dim), lod);
+    }
     // vec4 cc = fetch(dir, pos, u_voxelLod);
     color += (1.0f - color.a) * vec4(cc.xyz, 1.0f) * cc.a;
     pos += dir*stepSize;

@@ -4,6 +4,18 @@
 		"selected_items":
 		[
 			[
+				"qulity",
+				"visualizeQuality"
+			],
+			[
+				"qualit",
+				"visualizeQuality"
+			],
+			[
+				"fixop",
+				"fixopacityShader"
+			],
+			[
 				"Fresns",
 				"fresnelSchlickRoughness"
 			],
@@ -16,90 +28,19 @@
 	"buffers":
 	[
 		{
-			"file": "assets/shaders/voxelcone.frag",
-			"settings":
-			{
-				"buffer_size": 21260,
-				"encoding": "UTF-8",
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "/C/Users/ermanno/AppData/Roaming/Sublime Text 3/Packages/User/python-wsl.sublime-build",
-			"settings":
-			{
-				"buffer_size": 84,
-				"encoding": "UTF-8",
-				"line_ending": "Windows",
-				"name": "untitled.sublime-build"
-			}
-		},
-		{
-			"file": "src/object.h",
-			"settings":
-			{
-				"buffer_size": 1085,
-				"encoding": "UTF-8",
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "src/mesh.cpp",
-			"settings":
-			{
-				"buffer_size": 4104,
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "src/utils.cpp",
-			"settings":
-			{
-				"buffer_size": 1428,
-				"line_ending": "Windows"
-			}
-		},
-		{
 			"file": "src/main.cpp",
 			"settings":
 			{
-				"buffer_size": 13171,
+				"buffer_size": 14393,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "src/assetstore.cpp",
+			"file": "src/scene.h",
 			"settings":
 			{
-				"buffer_size": 1582,
-				"encoding": "UTF-8",
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "src/shader.cpp",
-			"settings":
-			{
-				"buffer_size": 3622,
-				"encoding": "UTF-8",
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "src/assets.h",
-			"settings":
-			{
-				"buffer_size": 6049,
-				"encoding": "UTF-8",
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "src/window.cpp",
-			"settings":
-			{
-				"buffer_size": 4279,
+				"buffer_size": 413,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
@@ -109,51 +50,42 @@
 			"settings":
 			{
 				"buffer_size": 975,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "src/texture.cpp",
+			"settings":
+			{
+				"buffer_size": 1894,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "assets/shaders/mipmap.comp",
+			"settings":
+			{
+				"buffer_size": 2166,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "src/light.h",
+			"file": "assets/shaders/showvoxels.frag",
 			"settings":
 			{
-				"buffer_size": 1092,
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "src/physics.h",
-			"settings":
-			{
-				"buffer_size": 2025,
+				"buffer_size": 1995,
 				"encoding": "UTF-8",
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "/C/Users/ermanno/Desktop/rtgp/include/utils/physics_v1.h",
+			"file": "assets/shaders/voxelcone.frag",
 			"settings":
 			{
-				"buffer_size": 7676,
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "/C/Users/ermanno/Desktop/rtgp/lectures_final/lecture06b/lecture06b.cpp",
-			"settings":
-			{
-				"buffer_size": 22449,
-				"line_ending": "Windows"
-			}
-		},
-		{
-			"file": "assets/shaders/pbr.fs",
-			"settings":
-			{
-				"buffer_size": 5116,
+				"buffer_size": 22162,
 				"encoding": "UTF-8",
-				"line_ending": "Windows",
-				"name": "#version 330 core"
+				"line_ending": "Windows"
 			}
 		}
 	],
@@ -213,6 +145,50 @@
 		"selected_items":
 		[
 			[
+				"remove",
+				"Package Control: Remove Package"
+			],
+			[
+				"remove package",
+				"Package Control: Remove Package"
+			],
+			[
+				"package remove",
+				"Package Control: Remove Channel"
+			],
+			[
+				"close all",
+				"File: Close All"
+			],
+			[
+				"color",
+				"UI: Select Color Scheme"
+			],
+			[
+				"install ",
+				"Package Control: Install Package"
+			],
+			[
+				"colorsche",
+				"UI: Select Color Scheme"
+			],
+			[
+				"colorsublime",
+				"Colorsublime: Install Theme"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"colors c",
+				"UI: Select Color Scheme"
+			],
+			[
+				"install package",
+				"Package Control: Install Package"
+			],
+			[
 				"cancel",
 				"Build: Cancel"
 			],
@@ -231,10 +207,6 @@
 			[
 				"theme",
 				"UI: Select Theme"
-			],
-			[
-				"install",
-				"Package Control: Install Package"
 			],
 			[
 				"package",
@@ -265,10 +237,40 @@
 	},
 	"expanded_folders":
 	[
-		"/C/Users/ermanno/Desktop/gidemo"
+		"/C/Users/ermanno/Desktop/gidemo",
+		"/C/Users/ermanno/Desktop/gidemo/assets",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders",
+		"/C/Users/ermanno/Desktop/gidemo/src"
 	],
 	"file_history":
 	[
+		"/D/Torrents/Baldurs.Gate.3.GOG/README.txt",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/voxelcone.frag",
+		"/C/Users/ermanno/AppData/Roaming/Sublime Text 3/Packages/User/python-wsl.sublime-build",
+		"/C/Users/ermanno/Desktop/gidemo/src/object.h",
+		"/C/Users/ermanno/Desktop/gidemo/src/mesh.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/src/utils.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/src/main.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/voxelize.frag",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/voxelize.vert",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/voxelize.geom",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/mipmap.comp",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/fixopacity.comp",
+		"/C/Users/ermanno/Desktop/gidemo/src/assetstore.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/src/shader.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/src/assets.h",
+		"/C/Users/ermanno/Desktop/gidemo/src/texture.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/src/window.h",
+		"/C/Users/ermanno/Desktop/gidemo/src/window.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/showvoxels.frag",
+		"/C/Users/ermanno/Desktop/gidemo/src/utils.h",
+		"/C/Users/ermanno/Desktop/gidemo/src/scene.h",
+		"/C/Users/ermanno/Desktop/gidemo/src/light.h",
+		"/C/Users/ermanno/Desktop/gidemo/src/physics.h",
+		"/C/Users/ermanno/Desktop/rtgp/include/utils/physics_v1.h",
+		"/C/Users/ermanno/Desktop/rtgp/lectures_final/lecture06b/lecture06b.cpp",
+		"/C/Users/ermanno/Desktop/gidemo/assets/shaders/pbr.fs",
+		"/C/Users/ermanno/Desktop/algoweb.txt",
 		"//wsl$/Ubuntu-20.04/home/ermanno/tsp20/trunk/righini/d/util.d",
 		"//wsl$/Ubuntu-20.04/home/ermanno/tsp20/trunk/righini/d/hotspot3d.d",
 		"//wsl$/Ubuntu-20.04/home/ermanno/tsp20/trunk/righini/d/gaussian.d",
@@ -295,6 +297,7 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"shadow",
 			"plane"
 		],
 		"highlight": true,
@@ -318,31 +321,29 @@
 			[
 				{
 					"buffer": 0,
-					"file": "assets/shaders/voxelcone.frag",
+					"file": "src/main.cpp",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 21260,
+						"buffer_size": 14393,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								1931,
-								1931
+								6801,
+								6801
 							]
 						],
 						"settings":
 						{
-							"_nv_visual_sel_mode": "mode_visual",
-							"highlight_line": false,
-							"syntax": "Packages/OpenGL Shading Language (GLSL)/GLSL.sublime-syntax",
-							"tab_size": 2,
-							"translate_tabs_to_spaces": true
+							"_nv_visual_sel_mode": "mode_visual_line",
+							"syntax": "Packages/C++/C++.sublime-syntax",
+							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
-						"translation.y": 1052.0,
+						"translation.y": 4534.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 0,
@@ -350,267 +351,36 @@
 				},
 				{
 					"buffer": 1,
-					"file": "/C/Users/ermanno/AppData/Roaming/Sublime Text 3/Packages/User/python-wsl.sublime-build",
+					"file": "src/scene.h",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 84,
+						"buffer_size": 413,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								53,
-								53
+								413,
+								413
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/JavaScript/JSON.sublime-syntax"
+							"_nv_visual_sel_mode": "mode_visual",
+							"syntax": "Packages/C++/C++.sublime-syntax",
+							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 5,
+					"stack_index": 6,
 					"type": "text"
 				},
 				{
 					"buffer": 2,
-					"file": "src/object.h",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1085,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								129,
-								129
-							]
-						],
-						"settings":
-						{
-							"highlight_line": false,
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 54.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 12,
-					"type": "text"
-				},
-				{
-					"buffer": 3,
-					"file": "src/mesh.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 4104,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 378.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 13,
-					"type": "text"
-				},
-				{
-					"buffer": 4,
-					"file": "src/utils.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1428,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 14,
-					"type": "text"
-				},
-				{
-					"buffer": 5,
-					"file": "src/main.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 13171,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 4992.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 8,
-					"type": "text"
-				},
-				{
-					"buffer": 6,
-					"file": "src/assetstore.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1582,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 54.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 16,
-					"type": "text"
-				},
-				{
-					"buffer": 7,
-					"file": "src/shader.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 3622,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								2374,
-								2374
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 1458.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 15,
-					"type": "text"
-				},
-				{
-					"buffer": 8,
-					"file": "src/assets.h",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 6049,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								817,
-								817
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 17,
-					"type": "text"
-				},
-				{
-					"buffer": 9,
-					"file": "src/window.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 4279,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								2483,
-								2483
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 1893.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 18,
-					"type": "text"
-				},
-				{
-					"buffer": 10,
 					"file": "src/utils.h",
 					"semi_transient": false,
 					"settings":
@@ -622,8 +392,8 @@
 						"selection":
 						[
 							[
-								0,
-								0
+								612,
+								612
 							]
 						],
 						"settings":
@@ -634,24 +404,24 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 19,
+					"stack_index": 5,
 					"type": "text"
 				},
 				{
-					"buffer": 11,
-					"file": "src/light.h",
+					"buffer": 3,
+					"file": "src/texture.cpp",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 1092,
+						"buffer_size": 1894,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								651,
-								651
+								1440,
+								1443
 							]
 						],
 						"settings":
@@ -660,19 +430,19 @@
 							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
-						"translation.y": 0.0,
+						"translation.y": 432.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 11,
+					"stack_index": 4,
 					"type": "text"
 				},
 				{
-					"buffer": 12,
-					"file": "src/physics.h",
+					"buffer": 4,
+					"file": "assets/shaders/mipmap.comp",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 2025,
+						"buffer_size": 2166,
 						"regions":
 						{
 						},
@@ -685,214 +455,62 @@
 						],
 						"settings":
 						{
-							"highlight_line": false,
-							"syntax": "Packages/C++/C++.sublime-syntax",
+							"_nv_visual_sel_mode": "mode_visual",
+							"syntax": "Packages/OpenGL Shading Language (GLSL)/GLSL.sublime-syntax",
 							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
 						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 10,
-					"type": "text"
-				},
-				{
-					"buffer": 13,
-					"file": "/C/Users/ermanno/Desktop/rtgp/include/utils/physics_v1.h",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 7676,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								4688,
-								4688
-							]
-						],
-						"settings":
-						{
-							"_nv_visual_sel_mode": "mode_visual",
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 1296.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 3,
 					"type": "text"
 				},
 				{
-					"buffer": 14,
-					"file": "/C/Users/ermanno/Desktop/rtgp/lectures_final/lecture06b/lecture06b.cpp",
+					"buffer": 5,
+					"file": "assets/shaders/showvoxels.frag",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 22449,
+						"buffer_size": 1995,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								5274,
-								5274
+								108,
+								108
 							]
 						],
 						"settings":
 						{
-							"_nv_visual_sel_mode": "mode_visual",
-							"syntax": "Packages/C++/C++.sublime-syntax",
+							"syntax": "Packages/OpenGL Shading Language (GLSL)/GLSL.sublime-syntax",
 							"tab_size": 2,
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 2577.0,
+						"translation.y": 162.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 2,
 					"type": "text"
 				},
 				{
-					"buffer": 2,
-					"file": "src/object.h",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1085,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								237,
-								237
-							]
-						],
-						"settings":
-						{
-							"highlight_line": false,
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 216.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 9,
-					"type": "text"
-				},
-				{
-					"buffer": 15,
-					"file": "assets/shaders/pbr.fs",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 5116,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								4610,
-								4610
-							]
-						],
-						"settings":
-						{
-							"_nv_visual_sel_mode": "mode_visual",
-							"auto_name": "#version 330 core",
-							"syntax": "Packages/OpenGL Shading Language (GLSL)/GLSL.sublime-syntax",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 1873.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"type": "text"
-				},
-				{
 					"buffer": 6,
-					"file": "src/assetstore.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1582,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								805,
-								805
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 486.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 7,
-					"type": "text"
-				},
-				{
-					"buffer": 7,
-					"file": "src/shader.cpp",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 3622,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								300,
-								300
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/C++/C++.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 6,
-					"type": "text"
-				},
-				{
-					"buffer": 0,
 					"file": "assets/shaders/voxelcone.frag",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 21260,
+						"buffer_size": 22162,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								19451,
-								19451
+								2543,
+								2543
 							]
 						],
 						"settings":
@@ -904,10 +522,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 11684.0,
+						"translation.y": 3359.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 4,
+					"stack_index": 1,
 					"type": "text"
 				}
 			]
@@ -966,12 +584,96 @@
 		"selected_items":
 		[
 			[
-				"vox",
+				"main.cpp",
+				"src\\main.cpp"
+			],
+			[
+				"utils",
+				"src\\utils.h"
+			],
+			[
+				"voxelcon",
 				"assets\\shaders\\voxelcone.frag"
+			],
+			[
+				"texture.cpp",
+				"src\\texture.cpp"
+			],
+			[
+				"mipmap",
+				"assets\\shaders\\mipmap.comp"
+			],
+			[
+				"showvoxels.fra",
+				"assets\\shaders\\showvoxels.frag"
+			],
+			[
+				"showvoxels.frag",
+				"assets\\shaders\\showvoxels.frag"
+			],
+			[
+				"assets",
+				"src\\assets.h"
+			],
+			[
+				"assets.h",
+				"src\\assets.h"
+			],
+			[
+				"showvoxels",
+				"assets\\shaders\\showvoxels.frag"
+			],
+			[
+				"voxelcone",
+				"assets\\shaders\\voxelcone.frag"
+			],
+			[
+				"voxelize.geom",
+				"assets\\shaders\\voxelize.geom"
+			],
+			[
+				"voxelize.vert",
+				"assets\\shaders\\voxelize.vert"
+			],
+			[
+				"voxelize",
+				"assets\\shaders\\voxelize.frag"
+			],
+			[
+				"voxelize.frag",
+				"assets\\shaders\\voxelize.frag"
+			],
+			[
+				"fixopaci",
+				"assets\\shaders\\fixopacity.comp"
+			],
+			[
+				"main",
+				"src\\main.cpp"
+			],
+			[
+				"show",
+				"assets\\shaders\\showvoxels.frag"
+			],
+			[
+				"frag",
+				"assets\\shaders\\voxelcone.frag"
+			],
+			[
+				"window.cpp",
+				"src\\window.cpp"
+			],
+			[
+				"mesh.cpp",
+				"src\\mesh.cpp"
 			],
 			[
 				"shader.cpp",
 				"src\\shader.cpp"
+			],
+			[
+				"vox",
+				"assets\\shaders\\voxelcone.frag"
 			],
 			[
 				"asset",
@@ -982,10 +684,6 @@
 				"src\\object.h"
 			],
 			[
-				"assets.h",
-				"src\\assets.h"
-			],
-			[
 				"assetstore.cpp",
 				"src\\assetstore.cpp"
 			],
@@ -994,16 +692,8 @@
 				"src\\assetstore.cpp"
 			],
 			[
-				"main.cpp",
-				"src\\main.cpp"
-			],
-			[
 				"utils.cpp",
 				"src\\utils.cpp"
-			],
-			[
-				"mesh.cpp",
-				"src\\mesh.cpp"
 			],
 			[
 				"light.h",
@@ -1014,23 +704,11 @@
 				"src\\utils.h"
 			],
 			[
-				"window.cpp",
-				"src\\window.cpp"
-			],
-			[
 				"objecth",
 				"src\\object.h"
 			],
 			[
 				"voxel",
-				"assets\\shaders\\voxelcone.frag"
-			],
-			[
-				"voxelcone",
-				"assets\\shaders\\voxelcone.frag"
-			],
-			[
-				"voxelcon",
 				"assets\\shaders\\voxelcone.frag"
 			]
 		],
@@ -1057,9 +735,9 @@
 	"selected_group": 0,
 	"settings":
 	{
-		"_vintageous_last_buffer_search": "u_metal",
+		"_vintageous_last_buffer_search": "horseSce",
 		"_vintageous_last_buffer_search_command": "vi_slash",
-		"_vintageous_last_char_search": ";",
+		"_vintageous_last_char_search": ")",
 		"_vintageous_last_char_search_command": "vi_t",
 		"_vintageous_reset_during_init": true
 	},
@@ -1067,7 +745,7 @@
 	"show_open_files": false,
 	"show_tabs": true,
 	"side_bar_visible": true,
-	"side_bar_width": 150.0,
+	"side_bar_width": 314.0,
 	"status_bar_visible": true,
 	"template_settings":
 	{

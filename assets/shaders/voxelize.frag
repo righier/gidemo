@@ -17,6 +17,8 @@ uniform vec3 u_lightColor;
 uniform float u_lightInnerCos;
 uniform float u_lightOuterCos;
 
+uniform bool u_averageValues;
+
 
 uniform sampler2D u_shadowMap;
 
@@ -59,7 +61,6 @@ vec3 toVoxel(vec3 pos) {
   return pos*(0.5)+0.5;  
 }
 
-/*
 vec4 rgbaToVec(uint val) {
 	return vec4(
 		float((val&0x000000FF)), 
@@ -78,19 +79,21 @@ uint vecToRgba(vec4 val) {
 	);
 }
 
-void imageAtomicAvg(layout(r32ui) coherent volatile uimage3D imagUI, ivec3 coords, vec4 val) {
+void imageAtomicAvg(layout(r32ui) coherent volatile image3D imgUI, ivec3 coords, vec4 val) {
 	val.rgb *= 255.0f;
 	uint newVal = vecToRgba(val);
-	uint preVal = 0;
+	uint prevVal = 0;
 	uint curVal;
 
 	while ((curVal = imageAtomicCompSwap(imgUI, coords, prevVal, newVal)) != prevVal) {
 		prevVal = curVal;
 		vec4 rval = rgbaToVec(curVal);
-		// rva.xya = (rval.xyz * rval.w);
+		rval.xyz = (rval.xyz * rval.w);
+		vec4 curValF = rval + val;
+		curValF.xyz /= curValF.w;
+		newVal = vecToRgba(curValF);
 	}
 }
-*/
 
 void main(){
 
@@ -112,5 +115,10 @@ void main(){
 	// color = b_normal * 0.5 + 0.5;
 
 	vec4 val = vec4(color, 1.0f);
-	imageStore(u_voxelTexture, ivec3(dim*posVoxelSpace), val);
+
+	if (u_averageValues) {
+		imageAtomicAvg(u_voxelTexture, ivec3(dim*posVoxelSpace), val);
+	} else {
+		imageStore(u_voxelTexture, ivec3(dim*posVoxelSpace), val);
+	}
 }

@@ -47,3 +47,26 @@ plane[1].z -= dot(hPixel.xy, abs(plane[1].xy));
 float4 finalPos;  
 finalPos.xyw = cross(plane[0], plane[1]); 
 */
+
+/*
+//semiDiagonal[0,1] = Normalized semidiagonals in the same  
+// quadrants as the edge's normals.  
+// vtxPos = The position of the current vertex.  
+// hPixel = dimensions of half a pixel cell    
+float dp = dot(semiDiagonal[0], semiDiagonal[1]);  
+float2 diag;      
+if (dp > 0) {    // The normals are in the same quadrant -> One vertex    
+	diag = semiDiagonal[0];  
+}  else if(dp < 0) {    // The normals are in neighboring quadrants -> Two vertices      
+	diag = (In.index == 0 ? semiDiagonal[0] : semiDiagonal[1]);  
+} else {    // The normals are in opposite quadrants -> Three vertices    
+	if (In.index == 1) {      // Special "quadrant between two quadrants case"      
+		diag = float2(
+			semiDiagonal[0].x * semiDiagonal[0].y * semiDiagonal[1].x,
+			semiDiagonal[0].y * semiDiagonal[1].x * semiDiagonal[1].y);    
+	} else {
+		diag = (In.index == 0 ? semiDiagonal[0] : semiDiagonal[1]);  
+	}
+}
+vtxPos.xy += hPixel.xy * diag * vtxPos.w;
+*/

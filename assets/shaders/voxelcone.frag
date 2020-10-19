@@ -16,10 +16,12 @@ uniform vec3 u_emission;
 // uniform sampler2DArray u_tex;
 
 uniform int u_voxelCount;
+uniform bool u_aniso;
 
 uniform vec3 u_cameraPos;
 
 uniform sampler3D u_voxelTexture;
+uniform sampler3D u_voxelTextureAniso[6];
 const ivec3 DIR = ivec3(0, 2, 4);
 
 uniform float u_offsetDist;
@@ -79,17 +81,30 @@ float roughnessToAperture(float roughness){
 vec4 fetch(vec3 dir, vec3 pos, float lod) {
   // ivec3 bd = DIR + ivec3(lessThan(dir, vec3(0.0f)));
 
-#if 1
-  return textureLod(u_voxelTexture, pos, lod);
-#else
-  bvec3 sig = greaterThan(dir, vec3(0.0f));
-  vec4 cx = sig.x ? textureLod(u_voxelTexture[1], pos, lod) : textureLod(u_voxelTexture[0], pos, lod);
-  vec4 cy = sig.y ? textureLod(u_voxelTexture[3], pos, lod) : textureLod(u_voxelTexture[2], pos, lod);
-  vec4 cz = sig.z ? textureLod(u_voxelTexture[5], pos, lod) : textureLod(u_voxelTexture[4], pos, lod);
+  if (u_aniso) {
+    bvec3 sig = greaterThan(dir, vec3(0.0f));
+    // sig = not(sig);
+    float l2 = max(0, lod - 1);
+    vec4 cx = sig.x ? textureLod(u_voxelTextureAniso[1], pos, l2) : textureLod(u_voxelTextureAniso[0], pos, l2);
+    vec4 cy = sig.y ? textureLod(u_voxelTextureAniso[3], pos, l2) : textureLod(u_voxelTextureAniso[2], pos, l2);
+    vec4 cz = sig.z ? textureLod(u_voxelTextureAniso[5], pos, l2) : textureLod(u_voxelTextureAniso[4], pos, l2);
 
-  vec3 sd = dir * dir; 
-  return sd.x * cx + sd.y * cy + sd.z * cz;
-#endif
+    vec3 sd = dir * dir; 
+    vec4 c1 = sd.x * cx + sd.y * cy + sd.z * cz;
+
+    // return textureLod(u_voxelTexture, pos, 0);
+    // return texture(u_voxelTexture, pos);
+
+    if (lod < 1) {
+      vec4 c2 = textureLod(u_voxelTexture, pos, 0);
+      return mix(c2, c1, lod);
+    } else {
+      return c1;
+    }
+
+  } else {
+    return textureLod(u_voxelTexture, pos, lod);
+  }
 
   // return sd.x * textureLod(u_voxelTexture[bd.x], pos, lod) + sd.y * textureLod(u_voxelTexture[bd.y], pos, lod) + sd.z * textureLod(u_voxelTexture[bd.z], pos, lod);
 }
@@ -625,6 +640,43 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 } 
 
+
+// vec4 traceVoxelCone( vec3 from, vec3 direction, float aperture, float offset, float maxDistance){
+vec3 myTracing(vec3 from, vec3 dir, float apertureAngle) {
+  vec3 offset = u_offsetPos * voxelSize * dir;
+  // vec3 start = from + offset * dir;
+  vec3 start = from + offset;
+
+  vec4 color = vec4(0);
+  float dist = voxelSize * u_offsetDist;
+
+  float a2 = max(voxelSize, 2 * tan(apertureAngle / 2));
+
+  while (dist < 1.733 && color.a < 1.0) {
+    float diameter = max(voxelSize/2, dist * a2);
+    float lod = log2(diameter * u_voxelCount);
+    vec3 pos = start + dir * dist;
+    // color = vec4(color.rgb, 1) * color.a + (1 - color.a) * fetch(dir, pos, lod);
+    color += (1 - color.a) * fetch(dir, pos, lod);
+
+    dist += diameter * 0.5;
+  }
+  // return vec3(1);
+
+  return color.rgb;
+}
+
+
+vec3 myDiffuse() {
+  vec3 color = vec3(0);
+
+  vec3 pos = toVoxel(a_pos);
+
+  color = myTracing(pos, normalize(a_normal), radians(20));
+
+  return color;
+}
+
 void main() {
   // o_albedo = texture(u_tex, vec3(a_uv, 0)).rgb;
   // o_metal_rough_ao.r = texture(u_tex, vec3(a_uv, 2)).r;
@@ -645,6 +697,13 @@ void main() {
 
   float roughness = u_rough;
   float metalness = u_metal;
+
+
+  vec3 col = myDiffuse();
+
+  o_albedo = col;
+
+  return;
 
 
   // vec3 directLight = spotlight();

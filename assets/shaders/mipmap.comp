@@ -1,7 +1,9 @@
 #version 460 core
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
+uniform int u_dir;
 uniform float u_level;
+uniform bool u_aniso;
 
 uniform sampler3D u_src;
 layout(RGBA8) uniform image3D u_dest;
@@ -18,16 +20,68 @@ const ivec3 off[8] = {
 };
 
 void main() {
-	ivec3 coords = ivec3(gl_GlobalInvocationID);
-	ivec3 pos = coords*2;
+	ivec3 coords = ivec3(gl_WorkGroupID);
 
-	vec4 color = vec4(0);
 
-	for (int i = 0; i < 8; i++) {
-		color += texelFetch(u_src, pos+off[i], int(u_level));
-	};
+	if (u_aniso) {
+		ivec3 pos = coords*2;
 
-	color /= 8.0f;
+			vec4 vals[8];
 
-	imageStore(u_dest, ivec3(coords), color);
+			for (int i = 0; i < 8; i++) {
+				vals[i] = texelFetch(u_src, pos+off[i], int(u_level));
+			};
+
+
+			vec4 color = vec4(0);
+			if (u_dir == 0) {
+				color = 
+				vals[1] + vals[0] * (1. - vals[1].w) + 
+				vals[3] + vals[2] * (1. - vals[3].w) + 
+				vals[5] + vals[4] * (1. - vals[5].w) + 
+				vals[7] + vals[6] * (1. - vals[7].w);
+			} else if (u_dir == 1) {
+				color = 
+				vals[0] + vals[1] * (1. - vals[0].w) + 
+				vals[2] + vals[3] * (1. - vals[2].w) + 
+				vals[4] + vals[5] * (1. - vals[4].w) + 
+				vals[6] + vals[7] * (1. - vals[6].w);
+			} else if (u_dir == 2) {
+				color = 
+				vals[2] + vals[0] * (1. - vals[2].w) + 
+				vals[3] + vals[1] * (1. - vals[3].w) + 
+				vals[6] + vals[4] * (1. - vals[6].w) + 
+				vals[7] + vals[5] * (1. - vals[7].w);
+			} else if (u_dir == 3) {
+				color = 
+				vals[0] + vals[2] * (1. - vals[0].w) + 
+				vals[1] + vals[3] * (1. - vals[1].w) + 
+				vals[4] + vals[6] * (1. - vals[4].w) + 
+				vals[5] + vals[7] * (1. - vals[5].w);
+			} else if (u_dir == 4) {
+				color = 
+				vals[4] + vals[0] * (1. - vals[4].w) + 
+				vals[5] + vals[1] * (1. - vals[5].w) + 
+				vals[6] + vals[2] * (1. - vals[6].w) + 
+				vals[7] + vals[3] * (1. - vals[7].w);
+			} else if (u_dir == 5) {
+				color = 
+				vals[0] + vals[4] * (1. - vals[0].w) + 
+				vals[1] + vals[5] * (1. - vals[1].w) + 
+				vals[2] + vals[6] * (1. - vals[2].w) + 
+				vals[3] + vals[7] * (1. - vals[3].w);
+			}
+		color *= .25f;
+		color.w = min(1.0f, color.w);
+
+		imageStore(u_dest, coords, color);
+	} else {
+		vec3 size = vec3(gl_NumWorkGroups);
+		vec3 pos = vec3(coords) / size + vec3(0.5 / size);
+		vec4 color = textureLod(u_src, pos, u_level);
+		imageStore(u_dest, coords, color);
+	}
+
+
+
 }

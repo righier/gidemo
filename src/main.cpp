@@ -37,10 +37,11 @@ AssetStore assets;
 
 // Texture *voxelTexture;
 Texture *voxelTexture;
+Texture *voxelTextureAniso[6];
 
 Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
-Shader *mipmapShader;
-Mesh *bunnyMesh, *cubeMesh, *planeMesh, *sphereMesh, *lpsphereMesh;
+Shader *mipmapShader, *fixopacityShader;
+Mesh *bunnyMesh, *horseMesh, *cubeMesh, *planeMesh, *sphereMesh, *lpsphereMesh;
 
 Shader *activeShader;
 
@@ -50,25 +51,45 @@ Framebuffer *shadowMap;
 Camera cam;
 
 int voxelCount = 128;
-float voxelScale = 1.01f;
 float offsetPos = 0.0f;
 float offsetDist = 0.25f;
 
 bool dynamicVoxelize = true;
+bool customMipmap = true;
+bool averageConflictingValues = true;
+bool anisotropicVoxels = true;
+bool temporalMultibounce = false;
+
 bool toggleVoxels = false;
-bool customMipmap = false;
 float voxelLod = 0;
+int voxelIndex = 0;
+float visualizeQuality = 10.0f;
 
 bool lockfps = false;
 bool vsyncStatus = false;
 int targetfps = 5;
 
 void initVoxelize() {
-	voxelTexture = Texture::init3D(voxelCount);
+	if (anisotropicVoxels) {
+		voxelTexture = Texture::init3D(voxelCount, false);
+		for (int i = 0; i < 6; i++) {
+			voxelTextureAniso[i] = Texture::init3D(voxelCount / 2, true);
+		}
+	} else {
+		voxelTexture = Texture::init3D(voxelCount, true);
+	}
 }
 
 void disposeVoxels() {
 	voxelTexture->dispose();
+	delete voxelTexture;
+
+	if (anisotropicVoxels) {
+		for (int i = 0; i < 6; i++) {
+			voxelTextureAniso[i]->dispose();
+			delete voxelTextureAniso[i];
+		}
+	}
 }
 
 void renderShadowMap() {
@@ -103,42 +124,40 @@ void voxelize() {
 	glDisable(GL_DEPTH_TEST);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 	// glEnable(GL_MULTISAMPLE);
-
  
-	voxelizeShader->set("u_voxelScale", voxelScale);
-
 	voxelTexture->bind(0);
-	voxelizeShader->set("u_voxelTexture", 0);
 	voxelTexture->clear(vec4(0,0,0,0));
+	voxelizeShader->set("u_voxelTexture", 0);
 	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
 	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
 	voxelizeShader->set("u_shadowBias", shadowBias);
- 	shadowMap->t->bind(1);
-	voxelizeShader->set("u_shadowMap", 1);
+
+ 	shadowMap->t->bind(0);
+	voxelizeShader->set("u_shadowMap", 0);
+	voxelizeShader->set("u_averageValues", averageConflictingValues);
 
 	scene.draw(voxelizeShader);
 	//render
 
-	if (customMipmap) {
-		mipmapShader->bind();
+	if (averageConflictingValues) {
+		fixopacityShader->bind();
+		fixopacityShader->set("u_voxel", 0);
+		glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+		fixopacityShader->dispatch(voxelCount, voxelCount, voxelCount);
+	}
 
-		u32 size = voxelCount / 2;
-		u32 level = 1;
-		while (size > 0) {
-			mipmapShader->set("u_level", std::max(0.002f, (float)(level-1)));
-			mipmapShader->set("u_src", 0);
-			voxelTexture->bind(0);
-			mipmapShader->set("u_dest", 1);
-			glBindImageTexture(1, voxelTexture->id, level, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-
-			mipmapShader->dispatch(size, size, size);
-			size /= 2;
-			level++;
+	if (anisotropicVoxels) {
+		for (int dir = 0; dir < 6; dir++) {
+			genMipmapLevel(mipmapShader, voxelTexture, voxelTextureAniso[dir], 0, voxelCount/2, true, dir);
+			genMipmap(mipmapShader, voxelTextureAniso[dir], voxelCount/4, true, dir);
 		}
+	} else if (customMipmap) {
+		genMipmap(mipmapShader, voxelTexture, voxelCount/2);
 	} else {
 		voxelTexture->bind(0);
 		glGenerateMipmap(GL_TEXTURE_3D);
+
 	}
 }
 
@@ -146,13 +165,22 @@ void showVoxels() {
 
 	visualizeShader->bind();
 	visualizeShader->set("u_project", cam.final);
-	visualizeShader->set("u_voxelScale", voxelScale);
 	visualizeShader->set("u_voxelCount", voxelCount);
 	visualizeShader->set("u_cameraPos", cam.pos);
 	visualizeShader->set("u_voxelLod", voxelLod);
+	visualizeShader->set("u_quality", visualizeQuality);
+	visualizeShader->set("u_aniso", anisotropicVoxels);
+	visualizeShader->set("u_voxelIndex", voxelIndex);
 
 	voxelTexture->bind(0);
 	visualizeShader->set("u_voxelTexture", 0);
+
+	if (anisotropicVoxels) {
+		for (int i = 0; i < 6; i++) {
+			voxelTextureAniso[i]->bind(i+1);
+			visualizeShader->setIndex("u_voxelTextureAniso", i, i+1);
+		}
+	}
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
@@ -171,19 +199,19 @@ void loadAssets() {
 	shadowShader = assets.add("shadow_shader", new Shader("shadow.vert", "shadow.frag"));
 
 	mipmapShader = assets.add("mipmap_shader", new Shader("mipmap.comp"));
+	fixopacityShader = assets.add("fixopacity_shader", new Shader("fixopacity.comp"));
 
 	bunnyMesh = loadMesh("../assets/models/bunny.obj");
+	horseMesh = loadMesh("../assets/models/horse.obj");
 	cubeMesh = loadMesh("../assets/models/cube.obj");
 	planeMesh = loadMesh("../assets/models/plane.obj");
 	lpsphereMesh = loadMesh("../assets/models/lp_sphere.obj");
 	sphereMesh = loadMesh("../assets/models/sphere.obj");
 
-
 	shadowMap = Framebuffer::shadowMap(2048, 2048);
 }
 
-void initScene() {
-
+void addCornellBox() {
 	scene.light = SpotLight(
 		vec3(0, 0.8, 0),
 		vec3(0, -1, 0),
@@ -232,33 +260,43 @@ void initScene() {
 		vec3(1,1,1),
 		quat(vec3(pi*0.5,-pi*0.5,0))
 		));
+}
 
-	scene.add(Object(
-		"sphere",
-		sphereMesh,
-		Material(vec3(0,0,1)),
-		vec3(3, 0, 0),
-		vec3(1,1,1),
-		quat(vec3(0,0,0))
-		));
+void bunnyScene() {
+	addCornellBox();
 
 	scene.add(Object(
 		"bunny",
 		bunnyMesh, 
 		Material(vec3(1)), 
-		vec3(.2,-3.,.2), 
+		vec3(.2,-1.,.2), 
 		vec3(.7,.7,.7),
 		quat(vec3(0,0,0))
-		));
+		));	
+}
+
+void horseScene() {
+	addCornellBox();
 
 	scene.add(Object(
-		"cube",
-		cubeMesh, 
+		"horse",
+		horseMesh, 
 		Material(vec3(1)), 
-		vec3(-.5,-1.7,-.5), 
-		vec3(.5,.2,.5),
-		quat(vec3(0,.5,0))
+		vec3(0,-1.,0), 
+		vec3(1,1,1),
+		quat(vec3(0,glm::radians(45.f),0))
 		));
+}
+
+void pbrScene() {
+	addCornellBox();
+
+	scene.light = SpotLight(
+		vec3(0, 0.8, 0),
+		vec3(0, -1, 0),
+		vec3(1,1,1),
+		110.f, 2.f
+		);
 
 	for (int i = 0; i <= 10; i++) {
 		for (int j = 0; j <= 10; j++) {
@@ -319,7 +357,7 @@ int main() {
 	int updateCount = 0;
 
 	loadAssets();
-	initScene();
+	horseScene();
 
 	initVoxelize();
 
@@ -422,18 +460,24 @@ int main() {
 			activeShader->set("u_project", cam.final);
 			activeShader->set("u_cameraPos", cam.pos);
 
-			activeShader->set("u_voxelScale", voxelScale);
 			activeShader->set("u_voxelCount", voxelCount);
 			activeShader->set("u_offsetPos", offsetPos);
 			activeShader->set("u_offsetDist", offsetDist);
 
-			voxelTexture->bind(0);
-			activeShader->set("u_voxelTexture", 0);
+			voxelTexture->bind(1);
+			activeShader->set("u_voxelTexture", 1);
+			activeShader->set("u_aniso", anisotropicVoxels);
+			if (anisotropicVoxels) {
+				for (int i = 0; i < 6; i++) {
+					voxelTextureAniso[i]->bind(i+2);
+					activeShader->setIndex("u_voxelTextureAniso", i, i+2);
+				}
+			}
 
 			activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
 			activeShader->set("u_shadowBias", shadowBias);
-			shadowMap->t->bind(1);
-			activeShader->set("u_shadowMap", 1);
+			shadowMap->t->bind(0);
+			activeShader->set("u_shadowMap", 0);
 
 			scene.draw(activeShader);
 
@@ -485,10 +529,6 @@ int main() {
     	int currVolumeItem = (int)round(log2(prevVoxelCount/16));
 
     	ImGui::Combo("Volume Size", &currVolumeItem, voxelCounts, 7);
-    	// ImGui::Combo("Volume Size", &currVolumeItem, [](void *data, int idx, const char **out_text) {
-    		// *out_text = std::to_string((1 << idx) * 16).c_str();
-    		// return true;
-    	// }, NULL, 7);
 
     	voxelCount = (1 << currVolumeItem) * 16;
 
@@ -499,10 +539,20 @@ int main() {
     	}
 
 		ImGui::Checkbox("Dynamic Voxelization", &dynamicVoxelize);
-		ImGui::Checkbox("Anisotropic Filtering", &customMipmap);
+		ImGui::Checkbox("Average Conflicting Values", &averageConflictingValues);
+		ImGui::Checkbox("Custom mipmap", &customMipmap);
+		if (ImGui::Checkbox("Anisotropic Voxels", &anisotropicVoxels)) {
+			disposeVoxels();
+			initVoxelize();
+		}
+		ImGui::Checkbox("Temporal Multibounce", &temporalMultibounce);
 		ImGui::Checkbox("Show Voxels", &toggleVoxels);
 		if (toggleVoxels) {
-			ImGui::SliderFloat("LOD", &voxelLod, 0.f, 7.f, "%.0f");
+			ImGui::SliderFloat("Quality", &visualizeQuality, 1, 50);
+			ImGui::SliderFloat("LOD", &voxelLod, 0.f, log2f((float)voxelCount)+1.f, "%.0f");
+			if (anisotropicVoxels) {
+				ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
+			}
 		} else {
 			ImGui::SliderFloat("Offset Pos", &offsetPos, -5.f, 5.f, "%.5f");
 			ImGui::SliderFloat("Offset Dist", &offsetDist, 0.0f, 5.f, "%.5f");

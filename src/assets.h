@@ -59,7 +59,7 @@ struct Texture {
 	u32 id;
 	u32 type;
 
-	static Texture *init3D(int size) {
+	static Texture *init3D(int size, bool mipmap) {
 		Texture *t = new Texture();
 		u32 type = GL_TEXTURE_3D;
 		u32 id;
@@ -70,12 +70,16 @@ struct Texture {
 		glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexParameteri(type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
 
-		glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		// glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+		if (mipmap) {
+			glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		} else {
+			glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		}
+
 		glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		u32 levels = (u32)std::ceil(std::log2(size))+1;
-		LOG("size: ", size, " levels: ", levels);
+		u32 levels = mipmap ? (u32)std::floor(std::log2(size))+1 : 1;
+		LOG("3D texture - size: ", size, " levels: ", levels);
 		glTexStorage3D(type, levels, GL_RGBA8, size, size, size);
 		t->id = id;
 		t->type = type;
@@ -283,8 +287,12 @@ struct Mesh {
 };
 
 
-
-
 Mesh *loadMesh(const string &path);
 
 Texture loadTexture(const string &path);
+
+void genMipmapLevel(Shader *program, Texture *src, Texture *dest, int level, int size, bool aniso, int dir);
+
+void genMipmap(Shader *program, Texture *texture, int size, bool aniso, int dir);
+
+void genMipmap(Shader *program, Texture *texture, int size);

@@ -40,3 +40,29 @@ Texture loadTexture(const string &path) {
 	LOG(endTime - startTime, "loaded texture:", path);
 	return t;
 }
+
+void genMipmapLevel(Shader *program, Texture *src, Texture *dest, int level, int size, bool aniso, int dir) {
+	program->bind();
+	program->set("u_level", std::max(0.0f, (float)(level-1)));
+	program->set("u_src", 0);
+	src->bind(0);
+	program->set("u_dest", 1);
+	program->set("u_aniso", aniso);
+	program->set("u_dir", dir);
+	glBindImageTexture(1, dest->id, level, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+	program->dispatch(size, size, size);
+}
+
+void genMipmap(Shader *program, Texture *texture, int size, bool aniso, int dir) {
+	int level = 1;
+	while (size > 0) {
+		genMipmapLevel(program, texture, texture, level, size, aniso, dir);
+		size /= 2;
+		level++;
+	}
+}
+
+void genMipmap(Shader *program, Texture *texture, int size) {
+	genMipmap(program, texture, size, false, 0);
+}
