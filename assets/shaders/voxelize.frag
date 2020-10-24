@@ -19,14 +19,35 @@ uniform float u_lightOuterCos;
 
 uniform bool u_averageValues;
 
+uniform int u_voxelCount;
+uniform bool u_aniso;
+uniform bool u_temporalMultibounce;
+
 
 uniform sampler2D u_shadowMap;
 
 layout(RGBA8) uniform image3D u_voxelTexture;
-const ivec3 DIR = ivec3(0, 2, 4);
-const int X = 0;
-const int Y = 2;
-const int Z = 4;
+
+uniform sampler3D u_voxelTextureAniso[6];
+uniform sampler3D u_voxelTexturePrev;
+
+float voxelSize = 1.0f / float(u_voxelCount);
+
+vec4 fetch(vec3 dir, vec3 pos, float lod) {
+  if (u_aniso) {
+    bvec3 sig = greaterThan(dir, vec3(0.0f));
+    float l2 = lod;
+    vec4 cx = sig.x ? textureLod(u_voxelTextureAniso[1], pos, l2) : textureLod(u_voxelTextureAniso[0], pos, l2);
+    vec4 cy = sig.y ? textureLod(u_voxelTextureAniso[3], pos, l2) : textureLod(u_voxelTextureAniso[2], pos, l2);
+    vec4 cz = sig.z ? textureLod(u_voxelTextureAniso[5], pos, l2) : textureLod(u_voxelTextureAniso[4], pos, l2);
+
+    vec3 sd = dir * dir; 
+    vec4 c1 = sd.x * cx + sd.y * cy + sd.z * cz;
+    return c1;
+  } else {
+    return textureLod(u_voxelTexturePrev, pos, max(1, lod));
+  }
+}
 
 float shadow() {
 	vec4 posls = u_lightProj * vec4(b_pos, 1.0);
@@ -51,6 +72,11 @@ vec3 spotlight() {
 	intensity *= dot(b_normal, lightDir);
 	intensity *= 1.0 - shadow();
 	return u_lightColor * intensity;
+}
+
+vec3 ortho(vec3 v) {
+  vec3 w = abs(dot(v, vec3(0,0,1))) < 0.99 ? vec3(0,0,1) : vec3(1,0,0);
+  return cross(v, w);
 }
 
 bool insideVoxel(vec3 pos) {
@@ -95,6 +121,69 @@ void imageAtomicAvg(layout(r32ui) coherent volatile image3D imgUI, ivec3 coords,
 	}
 }
 
+vec3 myTracing(vec3 from, vec3 dir, float apertureTan2) {
+  vec4 color = vec4(0);
+  float dist = voxelSize * 16;
+
+  // float a2 = max(voxelSize, 2 * tan(apertureAngle / 2));
+  float a2 = max(voxelSize, apertureTan2);
+
+  while (dist < 1.733 && color.a < 1.0) {
+    float diameter = max(voxelSize, dist * a2);
+    float lod = log2(diameter * u_voxelCount);//* u_voxelCount);
+    vec3 pos = from + dir * dist;
+    // color = vec4(color.rgb, 1) * color.a + (1 - color.a) * fetch(dir, pos, lod);
+    color += (1 - color.a) * fetch(dir, pos, lod);
+
+    dist += diameter * 1.0;
+  }
+  // return vec3(1);
+
+  return color.rgb;
+}
+
+vec3 myDiffuse() {
+  vec3 color = vec3(0);
+
+  vec3 pos = toVoxel(b_pos);
+  vec3 normal = b_normal;
+  pos += 8 * voxelSize * normal;
+
+  #define CONES 5
+
+  const vec3 cones[5] = vec3[5](
+    vec3(0, 0, 1),
+    vec3(1, 0, 1),
+    vec3(-1, 0, 1),
+    vec3(0, 1, 1),
+    vec3(0, -1, 1)
+    );
+
+  const float weight[5] = float[5]( 1, 0.5, 0.5, 0.5, 0.5);
+
+  float apertureAngle = 30;
+  float apertureTan2 = 2 * tan(radians(apertureAngle)/2);
+
+
+  vec3 xtan, ytan;
+ 
+  xtan = ortho(normal);
+  ytan = cross(normal, xtan);
+  ytan = cross(xtan, normal);
+
+  mat3 tanSpace = mat3(xtan, ytan, normal); 
+
+  for (int i = 0; i < CONES; i++) {
+    vec3 dir = tanSpace * cones[i];
+    color += weight[i] * myTracing(pos, normalize(dir), apertureTan2);
+  }
+
+
+  // return vec3(1);
+
+  return color;
+}
+
 void main(){
 
 	#if 0
@@ -113,6 +202,14 @@ void main(){
 	vec3 color = albedo * spotlight() + emission;
 	// color = u_diffuse;
 	// color = b_normal * 0.5 + 0.5;
+
+	if (u_temporalMultibounce) {
+		vec3 indirect = myDiffuse();
+		indirect *= albedo;
+		color += indirect * 0.3;
+		// color = fetch(vec3(1,0,0), posVoxelSpace, 0).rgb;
+		// color += 0.1;
+	}
 
 	vec4 val = vec4(color, 1.0f);
 

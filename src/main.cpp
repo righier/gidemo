@@ -59,6 +59,7 @@ bool customMipmap = true;
 bool averageConflictingValues = true;
 bool anisotropicVoxels = true;
 bool temporalMultibounce = false;
+bool addDiffuseNoise = false;
 
 bool toggleVoxels = false;
 float voxelLod = 0;
@@ -133,9 +134,24 @@ void voxelize() {
 	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
 	voxelizeShader->set("u_shadowBias", shadowBias);
 
- 	shadowMap->t->bind(0);
-	voxelizeShader->set("u_shadowMap", 0);
+ 	shadowMap->t->bind(1);
+	voxelizeShader->set("u_shadowMap", 1);
 	voxelizeShader->set("u_averageValues", averageConflictingValues);
+	voxelizeShader->set("u_temporalMultibounce", temporalMultibounce);
+	voxelizeShader->set("u_aniso", anisotropicVoxels);
+	voxelizeShader->set("u_voxelCount", voxelCount);
+
+	if (temporalMultibounce) {
+		if (anisotropicVoxels) {
+			for (int i = 0; i < 6; i++) {
+				voxelTextureAniso[i]->bind(i+2);
+				voxelizeShader->setIndex("u_voxelTextureAniso", i, i+2);
+			}
+		} else {
+			voxelizeShader->set("u_voxelTexturePrev", 2);
+			voxelTexture->bind(2);
+		}
+	}
 
 	scene.draw(voxelizeShader);
 	//render
@@ -243,6 +259,14 @@ void addCornellBox() {
 		vec3(1,1,1),
 		quat(vec3(pi*0.5,0,0))
 		));
+	// scene.add(Object(
+	// 	"frontWall",
+	// 	planeMesh,
+	// 	Material(vec3(1)),
+	// 	vec3(0,0,1),
+	// 	vec3(1,1,1),
+	// 	quat(vec3(-pi*0.5,0,0))
+	// 	));
 
 	scene.add(Object(
 		"red",
@@ -288,15 +312,30 @@ void horseScene() {
 		));
 }
 
-void pbrScene() {
+void benchScene() {
 	addCornellBox();
 
-	scene.light = SpotLight(
-		vec3(0, 0.8, 0),
-		vec3(0, -1, 0),
-		vec3(1,1,1),
-		110.f, 2.f
-		);
+	scene.add(Object(
+		"big",
+		sphereMesh,
+		Material(vec3(1), vec3(0), 0, 0.5),
+		vec3(-0.45, -0.45, -0.27371),
+		vec3(0.55, 0.55, 0.55),
+		quat(vec3(0,0,0))
+		));
+
+	scene.add(Object(
+		"small",
+		sphereMesh,
+		Material(vec3(1), vec3(0), 0, 0.5),
+		vec3(0.52374, -0.725, 0.28117),
+		vec3(0.275, 0.275, 0.275),
+		quat(vec3(0,0,0))
+		));
+}
+
+void pbrScene() {
+	addCornellBox();
 
 	for (int i = 0; i <= 10; i++) {
 		for (int j = 0; j <= 10; j++) {
@@ -335,6 +374,10 @@ int main() {
 	glDebugMessageCallback(MessageCallback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 
+	int maxTextures;
+	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextures);
+	LOG("max texture units:", maxTextures);
+
 	int work_grp_cnt[3];
 	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
 	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
@@ -357,7 +400,7 @@ int main() {
 	int updateCount = 0;
 
 	loadAssets();
-	horseScene();
+	benchScene();
 
 	initVoxelize();
 
@@ -463,6 +506,7 @@ int main() {
 			activeShader->set("u_voxelCount", voxelCount);
 			activeShader->set("u_offsetPos", offsetPos);
 			activeShader->set("u_offsetDist", offsetDist);
+			activeShader->set("u_diffuseNoise", addDiffuseNoise);
 
 			voxelTexture->bind(1);
 			activeShader->set("u_voxelTexture", 1);
@@ -546,6 +590,7 @@ int main() {
 			initVoxelize();
 		}
 		ImGui::Checkbox("Temporal Multibounce", &temporalMultibounce);
+		ImGui::Checkbox("Add Diffuse Noise", &addDiffuseNoise);
 		ImGui::Checkbox("Show Voxels", &toggleVoxels);
 		if (toggleVoxels) {
 			ImGui::SliderFloat("Quality", &visualizeQuality, 1, 50);

@@ -26,6 +26,7 @@ const ivec3 DIR = ivec3(0, 2, 4);
 
 uniform float u_offsetDist;
 uniform float u_offsetPos;
+uniform bool u_diffuseNoise;
 
 uniform vec3 u_lightPos;
 uniform vec3 u_lightDir;
@@ -58,7 +59,8 @@ vec3 getMaxComponent(vec3 v) {
 }
 
 vec3 ortho(vec3 v) {
-  vec3 w = normalize(v + vec3(0,0,1));
+  vec3 w = vec3(1,0,0);
+  if (abs(dot(v, w)) > 0.999) w = vec3(0,0,1);
   return cross(v, w);
 }
 
@@ -259,13 +261,9 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 
   vec4 acc = vec4(0.0f);
 
-  // Controls bleeding from close surfaces.
-  // Low values look rather bad if using shadow cone tracing.
-  // Might be a better choice to use shadow maps and lower this value.
-  float dist = 0.1953125;
+  float dist = voxelSize * 4;
   dist *= u_offsetDist;
 
-    // Trace.
   while(dist < SQRT2 && acc.a < 1){
     vec3 c = (from + dist * direction)*0.5 + 0.5;
     float l = (1 + CONE_SPREAD * dist / voxelSize);
@@ -274,12 +272,11 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
     vec4 voxel = fetch(direction, c, min(MIPMAP_HARDCAP, level));
     acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
     dist += ll * voxelSize * 2;
-    // dist += CONE_SPREAD * dist * sqrt(2) + voxelSize;
   }
   return pow(acc.rgb * 2.0, vec3(1.5));
 }
 
-vec3 indirectDiffuse(){
+vec3 indirectDiffuseOld(){
   const float ANGLE_MIX = 0.5f; // Angle mix (1.0f => orthogonal direction, 0.0f => direction of normal).
 
   const float w[3] = {1.0, 0.5, 0.5}; // Cone weights.
@@ -288,33 +285,21 @@ vec3 indirectDiffuse(){
   vec3 worldPositionFrag = a_pos;
   float voxelSize = 1.0f / float(u_voxelCount);
 
-  // Find a base for the side cones with the normal as one of its base vectors.
   const vec3 ortho = normalize(ortho(normal));
   const vec3 ortho2 = normalize(cross(ortho, normal));
 
-  // Find base vectors for the corner cones too.
   const vec3 corner = 0.5f * (ortho + ortho2);
   const vec3 corner2 = 0.5f * (ortho - ortho2);
 
-  // Find start position of trace (start with a bit of offset).
   const vec3 N_OFFSET = normal * (1 + 4 * 0.707106) * voxelSize;
   const vec3 C_ORIGIN = worldPositionFrag + N_OFFSET;
 
-  // Accumulate indirect diffuse light.
   vec3 acc = vec3(0);
 
-  // We offset forward in normal direction, and backward in cone direction.
-  // Backward in cone direction improves GI, and forward direction removes
-  // artifacts.
-  const float CONE_OFFSET = u_offsetPos;
+  const float CONE_OFFSET = u_offsetPos * voxelSize;
 
-  // Trace front cone
   acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
 
-  // return acc
-
-  #if 1
-  // Trace 4 side cones.
   const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
   const vec3 s2 = mix(normal, -ortho, ANGLE_MIX);
   const vec3 s3 = mix(normal, ortho2, ANGLE_MIX);
@@ -325,7 +310,6 @@ vec3 indirectDiffuse(){
   acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3);
   acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4);
 
-  // Trace 4 corner cones.
   const vec3 c1 = mix(normal, corner, ANGLE_MIX);
   const vec3 c2 = mix(normal, -corner, ANGLE_MIX);
   const vec3 c3 = mix(normal, corner2, ANGLE_MIX);
@@ -335,14 +319,9 @@ vec3 indirectDiffuse(){
   acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2);
   acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3);
   acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
-  #endif
 
-  // Return result.
   return acc;
 }
-
-
-
 
 float shadow() {
   float bias = u_shadowBias;
@@ -354,61 +333,11 @@ float shadow() {
   return shadowVal;
 }
 
-/*
-// Returns a soft shadow blend by using shadow cone tracing.
-// Uses 2 samples per step, so it's pretty expensive.
-float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
-  float voxelSize = 1.0f / u_voxelCount;
-  from += normal * 0.05f; // Removes artifacts but makes self shadowing for dense meshes meh.
-
-  float acc = 0;
-
-  float dist = 3 * voxelSize;
-  // I'm using a pretty big margin here since I use an emissive light ball with a pretty big radius in my demo scenes.
-  const float STOP = targetDistance - 16 * voxelSize;
-
-  while(dist < STOP && acc < 1){  
-    vec3 c = from + dist * direction;
-    if(!insideVoxel(c)) break;
-    c = scaleAndBias(c);
-    float l = pow(dist, 2); // Experimenting with inverse square falloff for shadows.
-    float s1 = 0.062 * textureLod(u_voxelTexture, c, 1 + 0.75 * l).a;
-    float s2 = 0.135 * textureLod(u_voxelTexture, c, 4.5 * l).a;
-    float s = s1 + s2;
-    acc += (1 - acc) * s;
-    dist += 0.9 * voxelSize * (1 + 0.05 * l);
-  }
-  return 1 - pow(smoothstep(0, 1, acc * 1.4), 1.0 / 1.4);
-} 
-*/
-
 vec3 getDirectionWeights(vec3 direction){
-#if 0
-  vec3 d = abs(normalize(direction));
-  return d / dot(d, vec3(1.0));
-#elif 0
-  return abs(direction);
-#else
   return direction * direction;
-#endif
 }
 
-/*
-vec4 fetch(vec3 dir, vec3 pos, float lod) {
-  vec3 d = -dir;
-  bvec3 sig = lessThan(d, vec3(0.0f));
-  ivec3 bd = DIR + ivec3(lessThan(d, vec3(0.0f)));
-  vec3 sd = d * d; 
 
-  vec4 cx = sig.x ? textureLod(u_voxelTexture[1], pos, lod) : textureLod(u_voxelTexture[0], pos, lod);
-  vec4 cy = sig.y ? textureLod(u_voxelTexture[3], pos, lod) : textureLod(u_voxelTexture[2], pos, lod);
-  vec4 cz = sig.z ? textureLod(u_voxelTexture[5], pos, lod) : textureLod(u_voxelTexture[4], pos, lod);
-
-  return sd.x * cx + sd.y * cy + sd.z * cz;
-
-  // return sd.x * textureLod(u_voxelTexture[bd.x], pos, lod) + sd.y * textureLod(u_voxelTexture[bd.y], pos, lod) + sd.z * textureLod(u_voxelTexture[bd.z], pos, lod);
-}
-*/
 vec4 traceVoxelCone( vec3 from, vec3 direction, float aperture, float offset, float maxDistance){
   direction = normalize(direction);
   bvec3 negativeDirection = lessThan(direction, vec3(0.0));
@@ -472,13 +401,13 @@ vec3 debugShadow() {
 
 float traceShadowCone(vec3 normal, vec3 from, vec3 to){
 
-  float aperture = tan(radians(3));
+  float aperture = tan(radians(2));
   float doubledAperture = max(voxelSize, 2.0 * aperture);
 
-  float s = 0.5;
+  float s = 0.3;
 
   vec3 direction = normalize(to - from);
-  from += direction * voxelSize * 2.0 + a_normal * voxelSize * 1.0;
+  from += direction * voxelSize * 4.0 + a_normal * voxelSize * 1.0;
 
   // vec3 offset = fixPosToVoxelGrid(from, normal);
 
@@ -487,13 +416,13 @@ float traceShadowCone(vec3 normal, vec3 from, vec3 to){
   // return length(offset);
 
   float maxDistance = length(to - from);
-  float dist = 0 * voxelSize;
+  float dist = 2.5 * voxelSize;
   float accumulator = 0.0;
   // direction /= maxDistance;
   maxDistance = min(maxDistance, 1.41421356237);
 
   vec2 rc = gl_FragCoord.xy;
-  dist += voxelJitterNoise(vec4(from.xyz + to.xyz + normal.xyz, rc.x)).x * s * voxelSize;
+  // dist += voxelJitterNoise(vec4(from.xyz + to.xyz + normal.xyz, rc.x)).x * s * voxelSize;
 
 
   vec3 position = from + (direction * dist);
@@ -501,6 +430,7 @@ float traceShadowCone(vec3 normal, vec3 from, vec3 to){
     float diameter = max(voxelSize * 0.5, doubledAperture * dist);
     if (dist + diameter * 1.414>= maxDistance) break;
     float mipMapLevel = max(0.0, log2((diameter * float(u_voxelCount)) + 1.0));
+    mipMapLevel = max(0, log2(diameter / voxelSize + 1));
     float cc = fetch(direction, position, mipMapLevel).w;
     accumulator += (1.0 - accumulator) * cc;
     dist += max(diameter, voxelSize) * s;
@@ -544,34 +474,6 @@ vec3 traceSpecular(float roughness) {
 }
 
 
-vec3 spotlight() {
-  vec3 spotDir = u_lightDir;
-  vec3 lightDir = normalize(u_lightPos - a_pos);
-  float dist = abs(length(a_pos - u_lightPos));
-  float angle = dot(spotDir, -lightDir);
-  float intensity = smoothstep(u_lightOuterCos, u_lightInnerCos, angle);
-  float attenuation = 1.0 / (1.0 + dist); 
-  intensity *= attenuation;
-  intensity *= max(0, dot(a_normal, lightDir));
-  // intensity *= 1.0 - min(1.0f, traceShadow(a_pos, u_lightPos));
-  // intensity *= 1.0 - min(1.0f, shadow());
-  if (intensity > 0) {
-    intensity *= traceShadow();
-  }
-  return u_lightColor * intensity;
-}
-
-// Normal Distribution Function (NDF)
-// GGX Trowbridge-Reintz
-// This is a more realistic alternative to blinn-phong
-float badoldsucks(vec3 N, vec3 H, float roughness) {
-  float a = roughness*roughness;
-  float a2 = a*a;
-  float NdotH = max(dot(N, H), 0.0);
-  float NdotH2 = NdotH*NdotH;
-  float d = NdotH2 * a2 - NdotH2 + 1.0;
-  return a2 / (PI * d*d);
-}
 
 //
 float NormalDistributionTrowbridgeReitz(float NdotH, float roughness) {
@@ -604,29 +506,6 @@ float GeometrySchlick(float NdotL, float NdotV, float roughness) {
   vec2 gs = k + (1 - k) * vec2(NdotL, NdotV);
   return (NdotL * NdotV) / (gs.x * gs.y);
 }
-/*
-
-float GeometrySchlickGGX(float NdotV, float roughness) {
-    float r = (roughness + 1.0);
-    float k = (r*r) / 8.0;
-
-
-    float nom   = NdotV;
-    float denom = NdotV * (1.0 - k) + k;
-
-    return nom / denom;
-}
-
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
-    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
-    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
-
-    return ggx1 * ggx2;
-}
-*/
-
 
 vec3 FresnelSchlick(float cosTheta, vec3 F0) {
   return F0 + (1 - F0) * pow(1 - cosTheta, 5);
@@ -641,41 +520,133 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
 } 
 
 
+
+float random(vec3 v) {
+  float a = dot(v, vec3(29.29384, 62.29384, 48.23478));
+  a = sin(a);
+  a = a * 293487.1273498;
+  a = fract(a);
+  return a;
+}
+
+vec3 random3(vec3 p3){
+  p3 = fract(p3 * vec3(443.897, 441.423, 437.195));
+  p3 += dot(p3, p3.zxy + vec3(31.31));
+  return fract((p3.xyz + p3.yzx) * p3.zyx);
+}
+
 // vec4 traceVoxelCone( vec3 from, vec3 direction, float aperture, float offset, float maxDistance){
-vec3 myTracing(vec3 from, vec3 dir, float apertureAngle) {
-  vec3 offset = u_offsetPos * voxelSize * dir;
-  // vec3 start = from + offset * dir;
-  vec3 start = from + offset;
+vec3 myTracing(vec3 from, vec3 dir, float apertureTan2) {
+  float dist = voxelSize * 4;
+
+  // float a2 = max(voxelSize, 2 * tan(apertureAngle / 2));
+  float a2 = max(voxelSize, apertureTan2);
 
   vec4 color = vec4(0);
-  float dist = voxelSize * u_offsetDist;
-
-  float a2 = max(voxelSize, 2 * tan(apertureAngle / 2));
-
   while (dist < 1.733 && color.a < 1.0) {
     float diameter = max(voxelSize/2, dist * a2);
-    float lod = log2(diameter * u_voxelCount);
-    vec3 pos = start + dir * dist;
+    float lod = log2(diameter / voxelSize);//* u_voxelCount);
+    vec3 pos = from + dir * dist;
     // color = vec4(color.rgb, 1) * color.a + (1 - color.a) * fetch(dir, pos, lod);
     color += (1 - color.a) * fetch(dir, pos, lod);
 
-    dist += diameter * 0.5;
+    dist += diameter * 1.0;
   }
   // return vec3(1);
 
   return color.rgb;
 }
 
-
 vec3 myDiffuse() {
   vec3 color = vec3(0);
 
   vec3 pos = toVoxel(a_pos);
+  vec3 normal = a_normal;
+  pos += 2 * voxelSize * normal;
 
-  color = myTracing(pos, normalize(a_normal), radians(20));
+  #define CONES 5
+
+  const vec3 cones[5] = vec3[5]( vec3(0,0,1), vec3(1,0,1), vec3(-1,0,1), vec3(0,1,1), vec3(0,-1,1));
+  const float weight[5] = float[5](1,0.5,0.5,0.5,0.5);
+
+  float apertureAngle = 30;
+  float apertureTan2 = 2 * tan(radians(apertureAngle)/2);
+
+  vec3 xtan, ytan;
+  if (u_diffuseNoise) {
+    xtan = normalize(random3(pos) * 2 + 1);
+    if (abs(dot(xtan, normal)) > 0.999) {
+      xtan = ortho(normal);
+    }
+    ytan = cross(normal, xtan);
+    xtan = cross(normal, ytan);
+  } else {
+    xtan = ortho(normal);
+    ytan = cross(normal, xtan);
+    ytan = cross(xtan, normal);
+  }
+  mat3 tanSpace = mat3(xtan, ytan, normal); 
+
+  for (int i = 0; i < CONES; i++) {
+    vec3 dir = tanSpace * cones[i];
+    color += weight[i] * myTracing(pos, normalize(dir), apertureTan2);
+  }
 
   return color;
 }
+
+float myShadow() {
+  vec3 normal = a_normal;
+  vec3 from = toVoxel(a_pos);
+  vec3 to = toVoxel(u_lightPos); 
+
+  float aperture = 3;
+  float a2 = tan(radians(aperture / 2)) * 2;
+
+  vec3 dir = normalize(to - from);
+  from += 4 * voxelSize * dir;
+  from += 0 * voxelSize * normal;
+  float maxDist = length(to - from);
+  maxDist = min(maxDist, 1.7);
+
+  // float dist = voxelSize * random(from);
+  float dist = (2.5 + random(from)) * voxelSize;
+
+  float acc = 0;
+  while (acc < 1.0) {
+    float diameter = max(voxelSize/2, dist * a2);
+    if (dist > maxDist) break;
+    float lod = max(0, log2(diameter / voxelSize + 1.0));//* u_voxelCount);
+    vec3 pos = from + dir * dist;
+    float cc = fetch(dir, pos, lod).a;
+    acc += (1 - acc) * cc*cc;
+
+    dist += diameter * 0.2;
+  }
+
+  return 1.0 - clamp(acc, 0.0, 1.0);
+}
+
+vec3 spotlight() {
+  vec3 spotDir = u_lightDir;
+  vec3 lightDir = normalize(u_lightPos - a_pos);
+  float dist = abs(length(a_pos - u_lightPos));
+  float angle = dot(spotDir, -lightDir);
+  float intensity = smoothstep(u_lightOuterCos, u_lightInnerCos, angle);
+  float attenuation = 1.0 / (1.0 + dist); 
+  intensity *= attenuation;
+  intensity *= max(0, dot(a_normal, lightDir));
+  // intensity *= 1.0 - min(1.0f, traceShadow(a_pos, u_lightPos));
+  // intensity *= 1.0 - min(1.0f, shadow());
+  if (intensity > 0) {
+    intensity *= myShadow();
+    // intensity *= 1.0 - shadow();
+  }
+  return u_lightColor * intensity;
+}
+
+
+
 
 void main() {
   // o_albedo = texture(u_tex, vec3(a_uv, 0)).rgb;
@@ -699,17 +670,17 @@ void main() {
   float metalness = u_metal;
 
 
-  vec3 col = myDiffuse();
+  // vec3 col = myDiffuse();
 
-  o_albedo = col;
-
-  return;
+  // o_albedo = col;
+  // return;
 
 
   // vec3 directLight = spotlight();
 
 
   // float shadow2 = 1.0 - shadow();
+
 
   vec3 spot = spotlight();
 
@@ -768,8 +739,17 @@ void main() {
   kD = 1.0 - kS;
   kD *= 1.0 - metalness;
 
-  vec3 indirectDiffuse = indirectDiffuse();
+  vec3 indirectDiffuse = myDiffuse();
+  // vec3 indirectDiffuse = indirectDiffuseOld();
+
+  if (u_aniso) {
+    indirectDiffuse *= 0.1;
+  }
+
+  // indirectDiffuse = pow(indirectDiffuse, vec3(2));
+  // indirectDiffuse = vec3(0);
   vec3 indirectSpecular = traceSpecular(roughness);
+
 
   vec3 ambientLight = (kD * indirectDiffuse * albedo + F * indirectSpecular); 
 
@@ -784,6 +764,10 @@ void main() {
   color += ambientLight;
   color += emission;
 
+  // color = indirectDiffuse;
+
+  // color = myDiffuse();
+  // color = indirectDiffuseOld();
 
   // color += roughness * diffuseLight * albedo;
   // color += (1.0f - u_rough) * specular;
@@ -793,7 +777,7 @@ void main() {
 
   // color = indirectLight;
 
-  color = color / (color + vec3(1.0f)); // tone mapping (Reinhard)
+  // color = color / (color + vec3(1.0f)); // tone mapping (Reinhard)
 
   color = pow(color, vec3(1.0/2.2)); // gamma correction
 
