@@ -83,5 +83,9 @@ void main() {
 
   // if (color.a <= 0.01f) discard;
 
+
+
+  // color = color / (color + vec4(1.0f)); // tone mapping (Reinhard)
+
   o_albedo = pow(color.rgb, vec3(1.0/2.2));
 }

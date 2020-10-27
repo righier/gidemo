@@ -111,7 +111,7 @@ void renderShadowMap() {
 	// glCullFace(GL_BACK);
 }
 
-void voxelize() {
+void voxelize(float time) {
 
 	if (!dynamicVoxelize) return;
 
@@ -140,6 +140,7 @@ void voxelize() {
 	voxelizeShader->set("u_temporalMultibounce", temporalMultibounce);
 	voxelizeShader->set("u_aniso", anisotropicVoxels);
 	voxelizeShader->set("u_voxelCount", voxelCount);
+	voxelizeShader->set("u_time", time);
 
 	if (temporalMultibounce) {
 		if (anisotropicVoxels) {
@@ -425,10 +426,10 @@ int main() {
 		float timeDelta = (float)(time - prevTime);
 		prevTime = time;
 
-    double targetDelta = 1.0 / (double)targetfps;
-    if (lockfps && timeDelta < targetDelta) {
-      System::sleep(targetDelta - timeDelta);
-    }
+		double targetDelta = 1.0 / (double)targetfps;
+		if (lockfps && timeDelta < targetDelta) {
+			System::sleep(targetDelta - timeDelta);
+		}
 
 		if (time - oldTime >= 1.0) {
 			double delta = time - oldTime;
@@ -480,7 +481,7 @@ int main() {
 
 		renderShadowMap();
 
-		voxelize();
+		voxelize((float)time);
 
 		Framebuffer::reset();
 		glViewport(0, 0, (int)winSize.x, (int)winSize.y);
@@ -507,6 +508,7 @@ int main() {
 			activeShader->set("u_offsetPos", offsetPos);
 			activeShader->set("u_offsetDist", offsetDist);
 			activeShader->set("u_diffuseNoise", addDiffuseNoise);
+			activeShader->set("u_time", (float)time);
 
 			voxelTexture->bind(1);
 			activeShader->set("u_voxelTexture", 1);

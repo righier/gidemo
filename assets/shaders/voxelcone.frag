@@ -28,6 +28,8 @@ uniform float u_offsetDist;
 uniform float u_offsetPos;
 uniform bool u_diffuseNoise;
 
+uniform float u_time;
+
 uniform vec3 u_lightPos;
 uniform vec3 u_lightDir;
 uniform vec3 u_lightColor;
@@ -43,20 +45,6 @@ layout(location = 0) out vec3 o_albedo;
 float voxelSize = 1.0f / float(u_voxelCount);
 
 const float PI = 3.14159265359;
-
-//return the vector component of maximum magnitude
-vec3 getMaxComponent(vec3 v) {
-  #if 1
-  vec3 q = abs(v);
-  if (q.x > q.y && q.x > q.z) return vec3(1,0,0);
-  else if (q.y > q.z) return vec3(0,1,0);
-  else return vec3(0,0,1);
-  #else
-  vec3 q = abs(v);
-  float m = max(q.x, max(q.y, q.z));
-  return vec3(equal(q, vec3(m)));
-  #endif
-}
 
 vec3 ortho(vec3 v) {
   vec3 w = vec3(1,0,0);
@@ -81,11 +69,9 @@ float roughnessToAperture(float roughness){
 
 
 vec4 fetch(vec3 dir, vec3 pos, float lod) {
-  // ivec3 bd = DIR + ivec3(lessThan(dir, vec3(0.0f)));
-
+  pos = clamp(pos, vec3(0), vec3(1));
   if (u_aniso) {
     bvec3 sig = greaterThan(dir, vec3(0.0f));
-    // sig = not(sig);
     float l2 = max(0, lod - 1);
     vec4 cx = sig.x ? textureLod(u_voxelTextureAniso[1], pos, l2) : textureLod(u_voxelTextureAniso[0], pos, l2);
     vec4 cy = sig.y ? textureLod(u_voxelTextureAniso[3], pos, l2) : textureLod(u_voxelTextureAniso[2], pos, l2);
@@ -94,39 +80,17 @@ vec4 fetch(vec3 dir, vec3 pos, float lod) {
     vec3 sd = dir * dir; 
     vec4 c1 = sd.x * cx + sd.y * cy + sd.z * cz;
 
-    // return textureLod(u_voxelTexture, pos, 0);
-    // return texture(u_voxelTexture, pos);
-
     if (lod < 1) {
       vec4 c2 = textureLod(u_voxelTexture, pos, 0);
       return mix(c2, c1, lod);
     } else {
       return c1;
     }
-
   } else {
     return textureLod(u_voxelTexture, pos, lod);
   }
-
-  // return sd.x * textureLod(u_voxelTexture[bd.x], pos, lod) + sd.y * textureLod(u_voxelTexture[bd.y], pos, lod) + sd.z * textureLod(u_voxelTexture[bd.z], pos, lod);
 }
 
-/*
-  float dist = 0.1953125;
-  dist *= u_offsetDist;
-
-    // Trace.
-  while(dist < SQRT2 && acc.a < 1){
-    vec3 c = (from + dist * direction)*0.5 + 0.5;
-    float l = (1 + CONE_SPREAD * dist / voxelSize);
-    float level = log2(l);
-    float ll = (level + 1) * (level + 1);
-    vec4 voxel = textureLod(u_voxelTexture, c, min(MIPMAP_HARDCAP, level));
-    acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
-    dist += ll * voxelSize * 2;
-  }
-  return pow(acc.rgb * 2.0, vec3(1.5));
-*/
 
 float traceShadow(vec3 start, vec3 lightPos) {
   // start = toVoxel(start);
@@ -155,172 +119,6 @@ float traceShadow(vec3 start, vec3 lightPos) {
 
   return pow(smoothstep(0, 1, acc * 1.4), 1.0f / 1.4);
   // return acc;
-}
-
-vec3 traceDiffuse(const vec3 start, const vec3 dir, float aperture, float maxdist) {
-  vec4 acc = vec4(0.f);
-  vec3 pos;
-  float dist = voxelSize * u_offsetDist;
-  float lod = -1.f;
-  float diam = 0.5f * voxelSize;
-
-  for (int i = 0; i < 7; i++) {
-    pos = start + dir * dist;
-    diam *= 2.f;
-    lod += 1.0f;
-    vec4 cc = fetch(dir, pos, max(0.002f, lod));
-    acc += (1.f - acc.w) * cc;
-    dist += diam;
-  }
-
-  return acc.xyz;
-}
-
-/*
-vec3 traceDiffuse(const vec3 start, vec3 dir, float aperture, float maxdist) {
-  vec4 acc = vec4(0);
-  float invsize = 1.0f / float(u_voxelCount);
-
-  float offset = u_offsetPos;
-  vec3 from = start + dir * (offset * invsize);
-  // float dist = 4*(u_offsetDist/float(u_voxelCount));
-
-  float dist = 0.1953125;
-  dist *= u_offsetDist;
-  vec3 pos = from + dist * dir;
-  float aperture2 = aperture * 2.0f;
-
-  while (dist < maxdist && acc.a < 1.f) {
-
-    float diam = max(voxelSize*0.5, aperture2 * dist);
-    float mipmap = max(0.002, log2(diam * float(u_voxelCount)));
-    // float mipmap = log2(diam * float(u_voxelCount));
-    // float mipmap = max(0.002, log2(diam * float(u_voxelCount)) );
-    // vec4 cc = textureLod(u_voxelTexture[0], pos, mipmap);
-    vec4 cc = fetch(dir, pos, mipmap-1.f);
-    cc = fetch(dir, pos, 7);
-    // cc = fetch(dir, vec3(0), 7);
-    // acc += (1.0f - acc.a) * cc;
-    acc += cc * pow(1 - cc.a, 2);
-    dist += max(diam, voxelSize) * 0.5;
-
-    // dist += voxelSize * 0.5;
-    pos = from + dist * dir;
-
-    // pos += dir * (1.0f/u_voxelCount)*0.2;
-  }
-
-  return acc.xyz;
-}
-*/
-
-
-vec3 indirectDiffuse2() {
-  const float coneAngle = radians(45.f);
-  const float cs = sin(coneAngle);
-  const float cc = cos(coneAngle);
-  const int NCONES = 7;
-  const vec3 cones[NCONES] = {
-    vec3(0, 0, 1),
-    vec3(cs, 0, cc),
-    vec3(-cs, 0, cc),
-    vec3(cs*cc, cs*cs, cc),
-    vec3(cs*cc, -cs*cs, cc),
-    vec3(-cs*cc, cs*cs, cc),
-    vec3(-cs*cc, -cs*cs, cc)
-  };
-
-  vec3 normal = a_normal;
-  vec3 xtan = ortho(normal);
-  vec3 ytan = cross(normal, xtan);
-  mat3 tanSpace = mat3(xtan, ytan, normal); 
-
-  vec3 acc = vec3(0);
-
-  float offset = u_offsetPos;
-  vec3 pos = toVoxel(a_pos) + normal*(offset/u_voxelCount);
-
-  float maxdist = sqrt(3.f);
-
-  // acc = traceDiffuse(pos, normal, tan(coneAngle/2.0f), maxdist);
-
-  for (int i = 0; i < NCONES; i++) {
-    vec3 dir = tanSpace * cones[i];
-    acc += traceDiffuse(pos, dir, tan(coneAngle/2.0f), maxdist);
-  }
-
-  return acc;
-}
-
-vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
-  direction = normalize(direction);
-  
-  const float CONE_SPREAD = 0.325;
-  const float MIPMAP_HARDCAP = 7.f;
-  const float SQRT2 = 1.414213;
-
-  vec4 acc = vec4(0.0f);
-
-  float dist = voxelSize * 4;
-  dist *= u_offsetDist;
-
-  while(dist < SQRT2 && acc.a < 1){
-    vec3 c = (from + dist * direction)*0.5 + 0.5;
-    float l = (1 + CONE_SPREAD * dist / voxelSize);
-    float level = log2(l);
-    float ll = (level + 1) * (level + 1);
-    vec4 voxel = fetch(direction, c, min(MIPMAP_HARDCAP, level));
-    acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
-    dist += ll * voxelSize * 2;
-  }
-  return pow(acc.rgb * 2.0, vec3(1.5));
-}
-
-vec3 indirectDiffuseOld(){
-  const float ANGLE_MIX = 0.5f; // Angle mix (1.0f => orthogonal direction, 0.0f => direction of normal).
-
-  const float w[3] = {1.0, 0.5, 0.5}; // Cone weights.
-
-  vec3 normal = a_normal;
-  vec3 worldPositionFrag = a_pos;
-  float voxelSize = 1.0f / float(u_voxelCount);
-
-  const vec3 ortho = normalize(ortho(normal));
-  const vec3 ortho2 = normalize(cross(ortho, normal));
-
-  const vec3 corner = 0.5f * (ortho + ortho2);
-  const vec3 corner2 = 0.5f * (ortho - ortho2);
-
-  const vec3 N_OFFSET = normal * (1 + 4 * 0.707106) * voxelSize;
-  const vec3 C_ORIGIN = worldPositionFrag + N_OFFSET;
-
-  vec3 acc = vec3(0);
-
-  const float CONE_OFFSET = u_offsetPos * voxelSize;
-
-  acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
-
-  const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
-  const vec3 s2 = mix(normal, -ortho, ANGLE_MIX);
-  const vec3 s3 = mix(normal, ortho2, ANGLE_MIX);
-  const vec3 s4 = mix(normal, -ortho2, ANGLE_MIX);
-
-  acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1);
-  acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2);
-  acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3);
-  acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4);
-
-  const vec3 c1 = mix(normal, corner, ANGLE_MIX);
-  const vec3 c2 = mix(normal, -corner, ANGLE_MIX);
-  const vec3 c3 = mix(normal, corner2, ANGLE_MIX);
-  const vec3 c4 = mix(normal, -corner2, ANGLE_MIX);
-
-  acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner, c1);
-  acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2);
-  acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3);
-  acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
-
-  return acc;
 }
 
 float shadow() {
@@ -364,88 +162,6 @@ vec4 voxelJitterNoise(vec4 p4){
   p4 = fract(p4 * vec4(443.897, 441.423, 437.195, 444.129));
   p4 += dot(p4, p4.wzxy + vec4(19.19));
   return fract((p4.xxyz + p4.yzzw) * p4.zywx);
-}
-
-// float rand(vec2 co){
-  // return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); 
-// }
-
-vec3 fixPosToVoxelGrid(vec3 pos, vec3 dir) {
-  vec3 maxComp = getMaxComponent(dir);
-
-  float p = dot(pos, maxComp);
-  float d = dot(dir, maxComp);
-
-  float newDirLen = floor(p*u_voxelCount+sign(d)) / u_voxelCount + voxelSize * 0.5 - p;
-
-  // return vec3(sign(d));
-  // return vec3(p);
-  // return maxComp;
-  // return dir / d * newDirLen * u_voxelCount * 0.5 + 0.5;
-
-  return dir / d * newDirLen;
-}
-
-vec3 debugShadowCone(vec3 normal, vec3 from, vec3 to) {
-  vec3 direction = normalize(to - from);
-  vec3 offset = fixPosToVoxelGrid(from, normal);
-  return offset;
-}
-
-vec3 debugShadow() {
-  vec3 normal = a_normal;
-  vec3 pos = toVoxel(a_pos);
-  vec3 lightPos = toVoxel(u_lightPos);
-  return debugShadowCone(normal, pos, lightPos);
-}
-
-float traceShadowCone(vec3 normal, vec3 from, vec3 to){
-
-  float aperture = tan(radians(2));
-  float doubledAperture = max(voxelSize, 2.0 * aperture);
-
-  float s = 0.3;
-
-  vec3 direction = normalize(to - from);
-  from += direction * voxelSize * 4.0 + a_normal * voxelSize * 1.0;
-
-  // vec3 offset = fixPosToVoxelGrid(from, normal);
-
-  // from += offset;
-
-  // return length(offset);
-
-  float maxDistance = length(to - from);
-  float dist = 2.5 * voxelSize;
-  float accumulator = 0.0;
-  // direction /= maxDistance;
-  maxDistance = min(maxDistance, 1.41421356237);
-
-  vec2 rc = gl_FragCoord.xy;
-  // dist += voxelJitterNoise(vec4(from.xyz + to.xyz + normal.xyz, rc.x)).x * s * voxelSize;
-
-
-  vec3 position = from + (direction * dist);
-  while((accumulator < 1.0)){
-    float diameter = max(voxelSize * 0.5, doubledAperture * dist);
-    if (dist + diameter * 1.414>= maxDistance) break;
-    float mipMapLevel = max(0.0, log2((diameter * float(u_voxelCount)) + 1.0));
-    mipMapLevel = max(0, log2(diameter / voxelSize + 1));
-    float cc = fetch(direction, position, mipMapLevel).w;
-    accumulator += (1.0 - accumulator) * cc;
-    dist += max(diameter, voxelSize) * s;
-    position = from + (direction * dist);
-  }
-  // return 1.0 - accumulator;
-  return 1.0 - clamp(accumulator, 0.0, 1.0);
-  // return clamp(1.0 - accumulator, 0.0, 1.0);
-}
-
-float traceShadow() {
-  vec3 normal = a_normal;
-  vec3 pos = toVoxel(a_pos);
-  vec3 lightPos = toVoxel(u_lightPos);
-  return traceShadowCone(normal, pos, lightPos);
 }
 
 vec3 traceSpecular(float roughness) {
@@ -574,7 +290,7 @@ vec3 myDiffuse() {
 
   vec3 xtan, ytan;
   if (u_diffuseNoise) {
-    xtan = normalize(random3(pos) * 2 + 1);
+    xtan = normalize(random3(pos*u_time) * 2 + 1);
     if (abs(dot(xtan, normal)) > 0.999) {
       xtan = ortho(normal);
     }
@@ -595,6 +311,25 @@ vec3 myDiffuse() {
   return color;
 }
 
+vec3 mySpecular(float roughness) {
+  vec4 acc = vec4(0);
+
+  vec3 pos = toVoxel(a_pos);
+  vec3 camPos = toVoxel(u_cameraPos);
+  vec3 normal = a_normal;
+
+  vec3 camDir = normalize(pos - camPos);
+  vec3 dir = reflect(camDir, normal);
+
+
+  pos += normal * voxelSize * 1.f;
+
+  float aperture = roughnessToAperture(roughness) * 2;
+
+  return myTracing(pos, dir, aperture);
+
+}
+
 float myShadow() {
   vec3 normal = a_normal;
   vec3 from = toVoxel(a_pos);
@@ -605,7 +340,7 @@ float myShadow() {
 
   vec3 dir = normalize(to - from);
   from += 4 * voxelSize * dir;
-  from += 0 * voxelSize * normal;
+  from += 1 * voxelSize * normal;
   float maxDist = length(to - from);
   maxDist = min(maxDist, 1.7);
 
@@ -649,57 +384,13 @@ vec3 spotlight() {
 
 
 void main() {
-  // o_albedo = texture(u_tex, vec3(a_uv, 0)).rgb;
-  // o_metal_rough_ao.r = texture(u_tex, vec3(a_uv, 2)).r;
-  // o_metal_rough_ao.g = texture(u_tex, vec3(a_uv, 3)).r;
-  // o_metal_rough_ao.b = 1.0f;
-
-  // mat3 tangent_matrix = mat3(a_xtan, a_ytan, a_normal);
-  // vec3 t_normal = texture(u_tex, vec3(a_uv, 1)).xyz * 2 - 1;
-  // o_normal = tangent_matrix * t_normal;
-
-  #if 0
-  vec3 albedo = u_diffuse;
-  vec3 emission = u_emission;
-  #else
   vec3 albedo = pow(u_diffuse, vec3(2.2)); //srgb fix
   vec3 emission = pow(u_emission, vec3(2.2));
-  #endif
 
   float roughness = u_rough;
   float metalness = u_metal;
 
-
-  // vec3 col = myDiffuse();
-
-  // o_albedo = col;
-  // return;
-
-
-  // vec3 directLight = spotlight();
-
-
-  // float shadow2 = 1.0 - shadow();
-
-
   vec3 spot = spotlight();
-
-  // vec3 spot = debugShadow();
-  // vec3 color = albedo;
-
-  // color = directLight + indirectLight;
-  // color *= albedo;
-  // color = specular * shadow;
-  // color = spot * albedo + specular;
-
-  // color = specular;
-
-  // color = albedo * (diffuseLight * 0.7) + specular * 0.3;
-
-  // color = diffuseLight * albedo;
-
-  // color = spot * albedo;
-
 
   vec3 F0 = vec3(0.04);
   F0 = mix(F0, albedo, metalness);
@@ -717,11 +408,9 @@ void main() {
   float NDF = NormalDistributionTrowbridgeReitz(NdotH, roughness);   
   float G   = GeometrySchlickFixed(NdotL, NdotV, roughness);      
   vec3 F    = FresnelSchlick(HdotV, F0);
-  // color = indirectLight;
-  // G = 1;
 
   vec3 nominator = NDF * G * F;
-  float denominator = 4 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
+  float denominator = 4 * NdotV * NdotL + 0.001;
 
   vec3 spec = nominator / denominator;
 
@@ -731,24 +420,20 @@ void main() {
 
   vec3 directLight = spot * (kD * albedo / PI + spec);
 
-  // vec3 diffuseLight = indirectDiffuse + spot;
-
-
   F = FresnelSchlickRoughness(NdotV, F0, roughness);
   kS = F;
   kD = 1.0 - kS;
   kD *= 1.0 - metalness;
 
   vec3 indirectDiffuse = myDiffuse();
-  // vec3 indirectDiffuse = indirectDiffuseOld();
+  vec3 indirectSpecular = traceSpecular(roughness);
+  // vec3 indirectSpecular = mySpecular(roughness);
 
-  if (u_aniso) {
-    indirectDiffuse *= 0.1;
-  }
+  // indirectDiffuse *= 0.1;
+  // indirectSpecular *= 0.3;
 
   // indirectDiffuse = pow(indirectDiffuse, vec3(2));
   // indirectDiffuse = vec3(0);
-  vec3 indirectSpecular = traceSpecular(roughness);
 
 
   vec3 ambientLight = (kD * indirectDiffuse * albedo + F * indirectSpecular); 
@@ -764,6 +449,9 @@ void main() {
   color += ambientLight;
   color += emission;
 
+  // color = directLight;
+  // color = spot * albedo;
+
   // color = indirectDiffuse;
 
   // color = myDiffuse();
@@ -777,7 +465,7 @@ void main() {
 
   // color = indirectLight;
 
-  // color = color / (color + vec3(1.0f)); // tone mapping (Reinhard)
+  color = color / (color + vec3(1.0f)); // tone mapping (Reinhard)
 
   color = pow(color, vec3(1.0/2.2)); // gamma correction
 
