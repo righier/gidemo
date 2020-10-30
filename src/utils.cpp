@@ -21,7 +21,9 @@ bool readFile(const std::string &path, std::string &s) {
 	return true;
 }
 
+#ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#endif
 
 u32 MurmurHash2 ( const void * key, int len, u32 seed ) {
 	const u32 m = 0x5bd1e995;
@@ -53,7 +55,10 @@ u32 MurmurHash2 ( const void * key, int len, u32 seed ) {
 
 	return h;
 } 
+
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
 
 u32 hash(const void *buffer, int size) {
 	return MurmurHash2(buffer, size, 0xa5a8ae1e);

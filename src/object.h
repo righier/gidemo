@@ -4,10 +4,15 @@
 #include "assets.h"
 
 struct Material {
-	vec3 diffuse;
-	vec3 emission;
-	float metal;
-	float rough;
+	vec3 diffuse = vec3(1);
+	vec3 emission = vec3(1);
+	float metal = 1.0;
+	float rough = 1.0;
+
+	Texture *diffuseMap = nullptr;
+	Texture *bumpMap = nullptr;
+	Texture *specMap = nullptr;
+	Texture *emissionMap = nullptr;
 
 	void bind(Shader *shader) {
 		shader->set("u_diffuse", diffuse);
@@ -15,13 +20,40 @@ struct Material {
 
 		shader->set("u_metal", metal);
 		shader->set("u_rough", rough);
+
+		shader->set("u_useMaps", diffuseMap != nullptr);
+
+		if (diffuseMap) {
+			diffuseMap->bind(10);
+			bumpMap->bind(11);
+			specMap->bind(12);
+			emissionMap->bind(13);
+			shader->set("u_diffuseMap", 10);
+			shader->set("u_bumpMap", 11);
+			shader->set("u_specMap", 12);
+			shader->set("u_emissionMap", 13);
+		}
 	}
 
-	Material(vec3 diffuse): diffuse(diffuse), emission(vec3(0)), metal(0), rough(1) {
-	}
+	Material() { }
 
-	Material(vec3 diffuse, vec3 emission, float metal, float rough): diffuse(diffuse), emission(emission), metal(metal), rough(rough) {
-	}
+	Material(vec3 diffuse, vec3 emission, float metal, float rough): 
+	diffuse(diffuse), 
+	emission(emission), 
+	metal(metal), 
+	rough(rough) 
+	{ }
+
+	Material(vec3 diffuse): 
+	Material(diffuse, vec3(0), 0.f, 1.f) 
+	{ }
+
+	Material(Texture *dMap, Texture *bMap, Texture *sMap, Texture *eMap): 
+	diffuseMap(dMap),
+	bumpMap(bMap),
+	specMap(sMap),
+	emissionMap(eMap)
+	{ }
 };
 
 struct Object {

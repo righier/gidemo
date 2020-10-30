@@ -26,6 +26,10 @@ struct Asset {
 			loadTime = currTime;
 		}
 	}
+
+	virtual void dispose() {
+		
+	}
 };
 
 struct AssetStore {
@@ -55,45 +59,50 @@ struct AssetStore {
 
 };
 
-struct Texture {
+struct Texture: Asset {
 	u32 id;
 	u32 type;
+	u32 format;
+	u32 storageType;
 
-	static Texture *init3D(int size, bool mipmap) {
+	static Texture *init3D(int size, bool mipmap, bool hdr) {
 		Texture *t = new Texture();
-		u32 type = GL_TEXTURE_3D;
-		u32 id;
-		glGenTextures(1, &id);
-		glBindTexture(type, id);
+		t->type = GL_TEXTURE_3D;
+		t->format = GL_RGBA;
+		t->storageType = hdr ? GL_RGBA16F : GL_RGBA8;
 
-		glTexParameteri(type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-		glTexParameteri(type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+		glGenTextures(1, &t->id);
+		glBindTexture(t->type, t->id);
+
+		glTexParameteri(t->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(t->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		glTexParameteri(t->type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
 
 		if (mipmap) {
-			glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(t->type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		} else {
-			glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(t->type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		}
 
-		glTexParameteri(type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(t->type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 		u32 levels = mipmap ? (u32)std::floor(std::log2(size))+1 : 1;
 		LOG("3D texture - size: ", size, " levels: ", levels);
-		glTexStorage3D(type, levels, GL_RGBA8, size, size, size);
-		t->id = id;
-		t->type = type;
+		glTexStorage3D(t->type, levels, t->storageType, size, size, size);
+
 		return t;
 	}
 
 	static Texture *shadowMap(int width, int height) {
 		Texture *t = new Texture();
 		t->type = GL_TEXTURE_2D;
+		t->format = GL_DEPTH_COMPONENT;
+		t->storageType = GL_FLOAT;
 		glGenTextures(1, &t->id);
 		t->bind(0);
-		glTexImage2D(t->type, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-		glTexParameteri(t->type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(t->type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexImage2D(t->type, 0, t->format, width, height, 0, t->format, t->storageType, NULL);
+		glTexParameteri(t->type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(t->type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(t->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
 		glTexParameteri(t->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER); 
 		return t;
@@ -105,7 +114,7 @@ struct Texture {
 	}
 
 	void clear(const vec4& value) {
-		glClearTexImage(id, 0, GL_RGBA, GL_FLOAT, &value[0]);
+		glClearTexImage(id, 0, format, GL_FLOAT, &value[0]);
 	}
 
 	void dispose() {
@@ -262,7 +271,7 @@ struct Vertex {
     vec3 b; //bitangent
 };
 
-struct Mesh {
+struct Mesh: Asset {
 	vector<Vertex> vertices;
 	vector<u32> indices;
 	u32 vao = 0, vbo = 0, ebo = 0;
@@ -287,9 +296,13 @@ struct Mesh {
 };
 
 
+Mesh *loadMesh(void *obj, int group_id);
+
 Mesh *loadMesh(const string &path);
 
-Texture loadTexture(const string &path);
+Texture *loadTexture(const char *path);
+
+Texture *createTexture(u8 *data, int width, int height, bool mipmap = true, bool aniso = true);
 
 void genMipmapLevel(Shader *program, Texture *src, Texture *dest, int level, int size, bool aniso, int dir);
 

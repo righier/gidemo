@@ -1,11 +1,6 @@
 #version 460 core
 
 in vec3 a_pos;
-// in vec2 a_uv;
-// in vec3 a_normal;
-// in vec3 a_xtan;
-// in vec3 a_ytan;
-
 
 uniform vec3 u_cameraPos;
 uniform int u_voxelCount;
@@ -40,8 +35,6 @@ float getMaxComponent(vec3 p) {
 }
 
 void main() {
-  // if (gl_FragCoord.z <= 0) return;
-
   vec3 camv = toVoxel(u_cameraPos);
   vec3 posv = toVoxel(a_pos);
   vec3 dir = normalize(posv - camv);
@@ -68,24 +61,16 @@ void main() {
   int maxi = 1000;
   while (insideVoxel(pos) && color.a < 0.99f) {
 
-    // vec3 pp = vec3(ivec3(pos*dim)) / dim + voxelSize*(1 << lod) / 2;
-    // vec4 cc = textureLod(u_voxelTexture[u_voxelIndex], pp, u_voxelLod);
     vec4 cc;
     if (lod > 0 && u_aniso) {
       cc = texelFetch(u_voxelTextureAniso[u_voxelIndex], ivec3(pos*dim), lod-1);
     } else {
       cc = texelFetch(u_voxelTexture, ivec3(pos*dim), lod);
     }
-    // vec4 cc = fetch(dir, pos, u_voxelLod);
     color += (1.0f - color.a) * vec4(cc.xyz, 1.0f) * cc.a;
     pos += dir*stepSize;
   }
 
-  // if (color.a <= 0.01f) discard;
-
-
-
-  // color = color / (color + vec4(1.0f)); // tone mapping (Reinhard)
-
+  color = color / (color + vec4(1.0f)); // tone mapping (Reinhard)
   o_albedo = pow(color.rgb, vec3(1.0/2.2));
 }

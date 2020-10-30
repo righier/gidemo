@@ -95,8 +95,8 @@ bool operator==(const fastObjIndex &a, const fastObjIndex &b) {
 	return a.p == b.p && a.t == b.t && a.n == b.n;
 }
 
-Mesh *loadMesh(const string &path) {
-	fastObjMesh *mesh = fast_obj_read(path.c_str());
+Mesh *loadMesh(void *_obj, int group_id) {
+	fastObjMesh *obj = (fastObjMesh *)_obj;
 
 	vector<Vertex> vertices;
 	vector<u32> indices;
@@ -107,15 +107,19 @@ Mesh *loadMesh(const string &path) {
 
 	std::unordered_map<fastObjIndex, u32, decltype(fun)> found(10, fun);
 
+	auto &group = obj->groups[group_id];
+	u32 start = group.index_offset;
+	u32 end = start + group.face_count * 3;
+
 	// generate unique vertices and indices
-	for (u32 i = 0; i < mesh->face_count * 3; i++) {
-		auto index = mesh->indices[i];
+	for (u32 i = start; i < end; i++) {
+		auto &index = obj->indices[i];
 
 		if (found.count(index) == 0) {
 			Vertex v;
-			v.p = glm::make_vec3(mesh->positions + index.p * 3);
-			v.uv = glm::make_vec2(mesh->texcoords + index.t * 2);
-			v.n = glm::make_vec3(mesh->normals + index.n * 3);
+			v.p = glm::make_vec3(obj->positions + index.p * 3);
+			v.uv = glm::make_vec2(obj->texcoords + index.t * 2);
+			v.n = glm::make_vec3(obj->normals + index.n * 3);
 			v.t = vec3(0);
 			v.b = vec3(0);
 
@@ -162,7 +166,15 @@ Mesh *loadMesh(const string &path) {
 		v.b = glm::normalize(v.b);
 	}
 
-	fast_obj_destroy(mesh);
-
 	return new Mesh(vertices, indices);
+}
+
+Mesh *loadMesh(const string &path) {
+	fastObjMesh *obj = fast_obj_read(path.c_str());
+
+	Mesh *mesh = loadMesh(obj, 0);
+
+	fast_obj_destroy(obj);
+
+	return mesh;
 }

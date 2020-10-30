@@ -10,6 +10,12 @@ uniform vec3 u_emission;
 uniform float u_metal;
 uniform float u_rough;
 
+uniform bool u_useMaps;
+uniform sampler2D u_diffuseMap;
+// uniform sampler2D u_bumpMap;
+// uniform sampler2D u_specMap;
+uniform sampler2D u_emissionMap;
+
 uniform mat4 u_lightProj;
 uniform float u_shadowBias;
 
@@ -20,6 +26,7 @@ uniform float u_lightInnerCos;
 uniform float u_lightOuterCos;
 
 uniform bool u_averageValues;
+uniform float u_restitution;
 
 uniform int u_voxelCount;
 uniform bool u_aniso;
@@ -63,7 +70,7 @@ float shadow() {
 	coords += coords.w;
 	float total = 0;
 	const int nsamples = 3;
-	float scale = voxelSize / 2;
+	float scale = voxelSize/2;
 	// scale = 03
 	for (int i = 0; i < nsamples; i++) {
 		for (int j = 0; j < nsamples; j++) {
@@ -80,9 +87,7 @@ float shadow() {
 
 	total /= nsamples*nsamples;
 
-	// float shadowDepth = textureProj(u_shadowMap, coords.xyw).r;
-	// float pointDepth = (coords.z) / coords.w;
-	// float shadowVal = float(pointDepth - bias >= shadowDepth);
+	return clamp(total, 0, 1);
 	return total;
 }
 
@@ -95,8 +100,8 @@ vec3 spotlight() {
 	float intensity = smoothstep(u_lightOuterCos, u_lightInnerCos, angle);
 	float attenuation = 1.0 / (1.0 + dist);	
 	intensity *= attenuation;
-	intensity *= dot(b_normal, lightDir);
-	intensity *= 1.0 - shadow();
+	intensity *= max(0, dot(b_normal, lightDir));
+	if (intensity>0) intensity *= 1.0 - shadow();
 	return u_lightColor * intensity;
 }
 
@@ -175,9 +180,11 @@ vec3 myTracing(vec3 from, vec3 dir, float apertureTan2) {
     float lod = log2(diameter * u_voxelCount);//* u_voxelCount);
     vec3 pos = from + dir * dist;
     // color = vec4(color.rgb, 1) * color.a + (1 - color.a) * fetch(dir, pos, lod);
-    color += (1 - color.a) * fetch(dir, pos, lod);
+    vec4 cc = fetch(dir, pos, lod);
+    if (!u_aniso) cc = cc * pow(2, lod);
+    color += (1 - color.a) * cc;
 
-    dist += diameter * 1.0;
+    dist += diameter * 0.3;
   }
   // return vec3(1);
 
@@ -188,9 +195,10 @@ vec3 myDiffuse() {
   vec3 color = vec3(0);
 
   vec3 pos = toVoxel(b_pos);
-  pos = (floor(pos * 0.999 * u_voxelCount) + 0.5) * voxelSize;
+  // pos = (floor(pos * 0.999 * u_voxelCount) + 0.5) * voxelSize;
   vec3 normal = b_normal;
   pos += 8 * voxelSize * normal;
+  // pos += 16 * voxelSize * normal;
 
   #define CONES 5
 
@@ -276,13 +284,17 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
 
 void main(){
 
-	#if 0
-	vec3 albedo = u_diffuse;
-	vec3 emission = u_emission;
-	#else
-	vec3 albedo = pow(u_diffuse, vec3(2.2));
-	vec3 emission = pow(u_emission, vec3(2.2));
-	#endif
+	float gammaEditor = 2.2;
+	float gammaTextures = 2.2;
+
+	vec3 albedo = pow(u_diffuse, vec3(gammaEditor));
+	vec3 emission = pow(u_emission, vec3(gammaEditor));
+
+	if (u_useMaps) {
+		albedo *= pow(texture(u_diffuseMap, b_uv).rgb, vec3(gammaTextures));
+		emission *= pow(texture(u_emissionMap, b_uv).rgb, vec3(gammaTextures));
+	}
+
 
 	float rougness = u_rough;
 	float metalness = u_metal;
@@ -291,6 +303,7 @@ void main(){
 
 
 	vec3 color = albedo * spotlight() / PI;
+	// color = max(vec3(0), color);
 
 	// color = u_diffuse;
 	// color = b_normal * 0.5 + 0.5;
@@ -298,10 +311,11 @@ void main(){
 	if (u_temporalMultibounce) {
 		vec3 indirect = myDiffuse();
 		indirect *= albedo;
-		color += indirect * 0.3;
+		color += indirect * u_restitution;
 	}
 	color += emission;
 
+	// color = vec3(shadow()/10);
 	vec4 val = vec4(color, 1.0f);
 
 	vec3 posVoxelSpace = toVoxel(b_pos) * 0.999f;

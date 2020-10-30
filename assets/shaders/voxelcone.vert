@@ -3,14 +3,14 @@
 layout (location = 0) in vec3 i_position;
 layout (location = 1) in vec2 i_uv;
 layout (location = 2) in vec3 i_normal;
-// layout (location = 3) in vec3 i_xtan;
-// layout (location = 4) in vec3 i_ytan;
+layout (location = 3) in vec3 i_xtan;
+layout (location = 4) in vec3 i_ytan;
 
 out vec3 a_pos;
 out vec3 a_normal;
 out vec4 a_posls;
-// out vec3 a_xtan;
-// out vec3 a_ytan;
+out vec3 a_xtan;
+out vec3 a_ytan;
 out vec2 a_uv;
 
 uniform mat4 u_project;
@@ -25,9 +25,9 @@ void main() {
 
 	mat3 rotate = mat3(transpose(inverse(u_transform)));
 
-	a_normal = normalize(rotate * i_normal);
-	// o_xtan = rotate * i_xtan;
-	// o_ytan = rotate * i_ytan;
+	a_normal = rotate * i_normal;
+	a_xtan = rotate * i_xtan;
+	a_ytan = rotate * i_ytan;
 
-	// a_uv = i_uv;
+	a_uv = i_uv;
 }

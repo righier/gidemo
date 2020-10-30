@@ -45,21 +45,26 @@ Mesh *bunnyMesh, *horseMesh, *cubeMesh, *planeMesh, *sphereMesh, *lpsphereMesh;
 
 Shader *activeShader;
 
-float shadowBias = 0.00007f;
+float shadowBias = 0.0005f;
 Framebuffer *shadowMap;
 
 Camera cam;
 
+bool enableIndirectLight = true;
 int voxelCount = 128;
-float offsetPos = 0.0f;
-float offsetDist = 0.25f;
 
 bool dynamicVoxelize = true;
 bool customMipmap = true;
-bool averageConflictingValues = true;
+bool averageConflictingValues = false;
 bool anisotropicVoxels = true;
-bool temporalMultibounce = false;
-bool addDiffuseNoise = false;
+bool hdrVoxels = true;
+bool temporalMultibounce = true;
+bool addDiffuseNoise = true;
+
+float restitution = 0.8f;
+
+bool enableTracedShadows = true;
+float shadowAperture = 5;
 
 bool toggleVoxels = false;
 float voxelLod = 0;
@@ -72,12 +77,12 @@ int targetfps = 5;
 
 void initVoxelize() {
 	if (anisotropicVoxels) {
-		voxelTexture = Texture::init3D(voxelCount, false);
+		voxelTexture = Texture::init3D(voxelCount, false, hdrVoxels);
 		for (int i = 0; i < 6; i++) {
-			voxelTextureAniso[i] = Texture::init3D(voxelCount / 2, true);
+			voxelTextureAniso[i] = Texture::init3D(voxelCount / 2, true, hdrVoxels);
 		}
 	} else {
-		voxelTexture = Texture::init3D(voxelCount, true);
+		voxelTexture = Texture::init3D(voxelCount, true, hdrVoxels);
 	}
 }
 
@@ -129,18 +134,19 @@ void voxelize(float time) {
 	voxelTexture->bind(0);
 	voxelTexture->clear(vec4(0,0,0,0));
 	voxelizeShader->set("u_voxelTexture", 0);
-	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, voxelTexture->storageType);
 
 	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
 	voxelizeShader->set("u_shadowBias", shadowBias);
 
  	shadowMap->t->bind(1);
 	voxelizeShader->set("u_shadowMap", 1);
-	voxelizeShader->set("u_averageValues", averageConflictingValues);
+	voxelizeShader->set("u_averageValues", averageConflictingValues && !hdrVoxels);
 	voxelizeShader->set("u_temporalMultibounce", temporalMultibounce);
 	voxelizeShader->set("u_aniso", anisotropicVoxels);
 	voxelizeShader->set("u_voxelCount", voxelCount);
 	voxelizeShader->set("u_time", time);
+	voxelizeShader->set("u_restitution", restitution);
 
 	if (temporalMultibounce) {
 		if (anisotropicVoxels) {
@@ -157,10 +163,10 @@ void voxelize(float time) {
 	scene.draw(voxelizeShader);
 	//render
 
-	if (averageConflictingValues) {
+	if (averageConflictingValues && !hdrVoxels) {
 		fixopacityShader->bind();
 		fixopacityShader->set("u_voxel", 0);
-		glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+		glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, voxelTexture->storageType);
 		fixopacityShader->dispatch(voxelCount, voxelCount, voxelCount);
 	}
 
@@ -230,10 +236,10 @@ void loadAssets() {
 
 void addCornellBox() {
 	scene.light = SpotLight(
-		vec3(0, 0.8, 0),
+		vec3(0, 1, 0),
 		vec3(0, -1, 0),
-		vec3(1,1,1),
-		110.f, 2.f
+		vec3(3,3,3),
+		110.f, .5f
 		);
 
 	scene.add(Object(
@@ -293,7 +299,7 @@ void bunnyScene() {
 	scene.add(Object(
 		"bunny",
 		bunnyMesh, 
-		Material(vec3(1)), 
+		Material(vec3(0.8,0.6,0.0),vec3(),1,0.2f), 
 		vec3(.2,-1.,.2), 
 		vec3(.7,.7,.7),
 		quat(vec3(0,0,0))
@@ -363,8 +369,22 @@ void pbrScene() {
 
 }
 
+void templeScene() {
+	scene.light = SpotLight(
+		vec3(0, 0.2, -0.5),
+		vec3(0, -1, 1),
+		vec3(10),
+		70.f, 20.f
+		);	
+
+	loadScene(scene, "../assets/suntemple/suntemple.obj");
+}
+
+#include <fast_obj.h>
+
 int main() {
 	System::init(4, 6);
+
 
 	Window::create(1280, 720, "title", Window::WINDOWED, vsyncStatus);
 
@@ -400,8 +420,9 @@ int main() {
 	double oldTime = System::time();
 	int updateCount = 0;
 
+
 	loadAssets();
-	benchScene();
+	templeScene();
 
 	initVoxelize();
 
@@ -424,12 +445,17 @@ int main() {
 
 		double time = System:: time();
 		float timeDelta = (float)(time - prevTime);
-		prevTime = time;
 
 		double targetDelta = 1.0 / (double)targetfps;
 		if (lockfps && timeDelta < targetDelta) {
-			System::sleep(targetDelta - timeDelta);
+			double sleepTime = targetDelta - timeDelta - 0.001;
+			if (sleepTime > 0) {
+				System::sleep(targetDelta - timeDelta);
+			}
+			continue;
 		}
+
+		prevTime = time;
 
 		if (time - oldTime >= 1.0) {
 			double delta = time - oldTime;
@@ -470,7 +496,7 @@ int main() {
 		if (Input::getKey(KEY_Q)) move.y -= 1;
 		if (Input::getKey(KEY_E)) move.y += 1;
 
-		float moveSpeed = 3.f;
+		float moveSpeed = 0.5f;
 		move = move * moveSpeed * (float)timeDelta;
 		move = glm::rotateY(move, cam.hrot);
 
@@ -504,11 +530,10 @@ int main() {
 			activeShader->set("u_project", cam.final);
 			activeShader->set("u_cameraPos", cam.pos);
 
+			activeShader->set("u_indirectLight", enableIndirectLight);
 			activeShader->set("u_voxelCount", voxelCount);
-			activeShader->set("u_offsetPos", offsetPos);
-			activeShader->set("u_offsetDist", offsetDist);
 			activeShader->set("u_diffuseNoise", addDiffuseNoise);
-			activeShader->set("u_time", (float)time);
+			activeShader->set("u_restitution", restitution);
 
 			voxelTexture->bind(1);
 			activeShader->set("u_voxelTexture", 1);
@@ -524,6 +549,8 @@ int main() {
 			activeShader->set("u_shadowBias", shadowBias);
 			shadowMap->t->bind(0);
 			activeShader->set("u_shadowMap", 0);
+
+			activeShader->set("u_time", (float)time);
 
 			scene.draw(activeShader);
 
@@ -591,8 +618,11 @@ int main() {
 			disposeVoxels();
 			initVoxelize();
 		}
+		if (ImGui::Checkbox("HDR Voxels", &hdrVoxels)) {
+			disposeVoxels();
+			initVoxelize();
+		}
 		ImGui::Checkbox("Temporal Multibounce", &temporalMultibounce);
-		ImGui::Checkbox("Add Diffuse Noise", &addDiffuseNoise);
 		ImGui::Checkbox("Show Voxels", &toggleVoxels);
 		if (toggleVoxels) {
 			ImGui::SliderFloat("Quality", &visualizeQuality, 1, 50);
@@ -601,9 +631,14 @@ int main() {
 				ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
 			}
 		} else {
-			ImGui::SliderFloat("Offset Pos", &offsetPos, -5.f, 5.f, "%.5f");
-			ImGui::SliderFloat("Offset Dist", &offsetDist, 0.0f, 5.f, "%.5f");
+			ImGui::Checkbox("Enable Indirect Light", &enableIndirectLight);
+			ImGui::Checkbox("Add Diffuse Noise", &addDiffuseNoise);
+			ImGui::Checkbox("Enable Traced Shadows", &enableTracedShadows);
+			if (enableTracedShadows) {
+				ImGui::SliderFloat("Traced Shadow Aperture", &tracedShadowAperture, 0.1f, 90.f, "%.01f");
+			}
 		}
+		ImGui::SliderFloat("Diffuse restitution", &restitution, 0, 1, "%.01f");
 		ImGui::End();
 
 		Window::update();

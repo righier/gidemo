@@ -23,3 +23,5 @@ struct Scene {
 		}
 	}
 };
+
+void loadScene(Scene &scene, const char *path);

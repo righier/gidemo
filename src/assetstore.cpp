@@ -67,6 +67,7 @@ void AssetStore::update() {
 
 		auto it = deps.find(file);
 		if (it != deps.end()) {
+			System::sleep(0.1);
 			Asset *asset = it->second;
 			asset->load();
 		}
