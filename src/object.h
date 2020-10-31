@@ -8,6 +8,7 @@ struct Material {
 	vec3 emission = vec3(1);
 	float metal = 1.0;
 	float rough = 1.0;
+	float emissionScale = 1.0;
 
 	Texture *diffuseMap = nullptr;
 	Texture *bumpMap = nullptr;
@@ -20,6 +21,7 @@ struct Material {
 
 		shader->set("u_metal", metal);
 		shader->set("u_rough", rough);
+		shader->set("u_emissionScale", emissionScale);
 
 		shader->set("u_useMaps", diffuseMap != nullptr);
 
@@ -28,31 +30,34 @@ struct Material {
 			bumpMap->bind(11);
 			specMap->bind(12);
 			emissionMap->bind(13);
-			shader->set("u_diffuseMap", 10);
-			shader->set("u_bumpMap", 11);
-			shader->set("u_specMap", 12);
-			shader->set("u_emissionMap", 13);
 		}
+
+		shader->set("u_diffuseMap", 10);
+		shader->set("u_bumpMap", 11);
+		shader->set("u_specMap", 12);
+		shader->set("u_emissionMap", 13);
 	}
 
 	Material() { }
 
-	Material(vec3 diffuse, vec3 emission, float metal, float rough): 
+	Material(vec3 diffuse, vec3 emission, float metal, float rough, float emissionScale = 1.0): 
 	diffuse(diffuse), 
 	emission(emission), 
 	metal(metal), 
-	rough(rough) 
+	rough(rough),
+	emissionScale(emissionScale)
 	{ }
 
 	Material(vec3 diffuse): 
 	Material(diffuse, vec3(0), 0.f, 1.f) 
 	{ }
 
-	Material(Texture *dMap, Texture *bMap, Texture *sMap, Texture *eMap): 
+	Material(Texture *dMap, Texture *bMap, Texture *sMap, Texture *eMap, float emissionScale = 1.0): 
 	diffuseMap(dMap),
 	bumpMap(bMap),
 	specMap(sMap),
-	emissionMap(eMap)
+	emissionMap(eMap),
+	emissionScale(emissionScale)
 	{ }
 };
 

@@ -304,6 +304,10 @@ Texture *loadTexture(const char *path);
 
 Texture *createTexture(u8 *data, int width, int height, bool mipmap = true, bool aniso = true);
 
+Texture *whiteTexture();
+Texture *blackTexture();
+Texture *normalTexture();
+
 void genMipmapLevel(Shader *program, Texture *src, Texture *dest, int level, int size, bool aniso, int dir);
 
 void genMipmap(Shader *program, Texture *texture, int size, bool aniso, int dir);

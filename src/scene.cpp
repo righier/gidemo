@@ -20,9 +20,6 @@ void loadScene(Scene &scene, const char *path) {
 	LOG("loading materials");
 	vector<Material> materials;
 
-	u8 blackColor[] = {0, 0, 0};
-	Texture *black = createTexture(blackColor, 1, 1, false, false);
-
 	for (size_t i = 0; i < obj->material_count; i++) {
 		fastObjMaterial &mat = obj->materials[i];
 		LOG("material:", mat.name);
@@ -31,7 +28,10 @@ void loadScene(Scene &scene, const char *path) {
 		Texture *bMap = loadTexture(mat.map_bump.path);
 		Texture *sMap = loadTexture(mat.map_Ks.path);
 		Texture *eMap = loadTexture(mat.map_Ke.path);
-		if (eMap == nullptr) eMap = black;
+		if (dMap == nullptr) dMap = whiteTexture();
+		if (bMap == nullptr) bMap = normalTexture();
+		if (sMap == nullptr) sMap = whiteTexture();
+		if (eMap == nullptr) eMap = blackTexture();
 
 		Material m(dMap, bMap, sMap, eMap);
 		materials.push_back(m);

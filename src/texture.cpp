@@ -58,6 +58,33 @@ Texture *loadTexture(const char *path) {
 	return t;
 }
 
+Texture *white = nullptr;
+Texture *black = nullptr;
+Texture *normal = nullptr;
+
+Texture *colorTexture(float r, float g, float b) {
+	r = glm::clamp(r*256.f, 0.f, 255.f);
+	g = glm::clamp(g*256.f, 0.f, 255.f);
+	b = glm::clamp(b*256.f, 0.f, 255.f);
+	u8 color[] = {(u8)r, (u8)g, (u8)b};
+	return createTexture(color, 1, 1, false, false);
+}
+
+Texture *whiteTexture() {
+	if (!white) white = colorTexture(1.f, 1.f, 1.f);
+	return white;
+}
+
+Texture *blackTexture() {
+	if (!black) black = colorTexture(0.f, 0.f, 0.f);
+	return black;
+}
+
+Texture *normalTexture() {
+	if (!normal) normal = colorTexture(.5f, .5f, 1.f);
+	return normal;
+}
+
 void genMipmapLevel(Shader *program, Texture *src, Texture *dest, int level, int size, bool aniso, int dir) {
 	program->bind();
 	program->set("u_level", std::max(0.0f, (float)(level-1)));

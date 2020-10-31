@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <locale>
 #include <codecvt>
+#include <random>
 
 #include "utils.h"
 
@@ -74,4 +75,10 @@ std::string ws2s(const std::wstring& wstr) {
     using convert_typeX = std::codecvt_utf8<wchar_t>;
     std::wstring_convert<convert_typeX, wchar_t> converterX;
     return converterX.to_bytes(wstr);
+}
+
+float randomf() {
+	static std::default_random_engine e;
+    static std::uniform_real_distribution<float> dis(0, 1);
+    return dis(e);
 }

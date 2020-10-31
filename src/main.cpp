@@ -6,6 +6,8 @@
 #include "assets.h"
 #include "scene.h"
 
+#include "particlesystem.h"
+
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
@@ -41,9 +43,10 @@ Texture *voxelTextureAniso[6];
 
 Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
 Shader *mipmapShader, *fixopacityShader;
-Mesh *bunnyMesh, *horseMesh, *cubeMesh, *planeMesh, *sphereMesh, *lpsphereMesh;
 
 Shader *activeShader;
+
+Mesh *cubeMesh;
 
 float shadowBias = 0.0005f;
 Framebuffer *shadowMap;
@@ -148,16 +151,16 @@ void voxelize(float time) {
 	voxelizeShader->set("u_time", time);
 	voxelizeShader->set("u_restitution", restitution);
 
-	if (temporalMultibounce) {
+	if (!anisotropicVoxels) {
+		voxelTexture->bind(8);
+	}
+	voxelizeShader->set("u_voxelTexturePrev", 8);
+
+	for (int i = 0; i < 6; i++) {
 		if (anisotropicVoxels) {
-			for (int i = 0; i < 6; i++) {
-				voxelTextureAniso[i]->bind(i+2);
-				voxelizeShader->setIndex("u_voxelTextureAniso", i, i+2);
-			}
-		} else {
-			voxelizeShader->set("u_voxelTexturePrev", 2);
-			voxelTexture->bind(2);
+			voxelTextureAniso[i]->bind(i+2);
 		}
+		voxelizeShader->setIndex("u_voxelTextureAniso", i, i+2);
 	}
 
 	scene.draw(voxelizeShader);
@@ -198,11 +201,11 @@ void showVoxels() {
 	voxelTexture->bind(0);
 	visualizeShader->set("u_voxelTexture", 0);
 
-	if (anisotropicVoxels) {
-		for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < 6; i++) {
+		if (anisotropicVoxels) {
 			voxelTextureAniso[i]->bind(i+1);
-			visualizeShader->setIndex("u_voxelTextureAniso", i, i+1);
 		}
+		visualizeShader->setIndex("u_voxelTextureAniso", i, i+1);
 	}
 
 	glEnable(GL_CULL_FACE);
@@ -224,32 +227,45 @@ void loadAssets() {
 	mipmapShader = assets.add("mipmap_shader", new Shader("mipmap.comp"));
 	fixopacityShader = assets.add("fixopacity_shader", new Shader("fixopacity.comp"));
 
-	bunnyMesh = loadMesh("../assets/models/bunny.obj");
-	horseMesh = loadMesh("../assets/models/horse.obj");
 	cubeMesh = loadMesh("../assets/models/cube.obj");
-	planeMesh = loadMesh("../assets/models/plane.obj");
-	lpsphereMesh = loadMesh("../assets/models/lp_sphere.obj");
-	sphereMesh = loadMesh("../assets/models/sphere.obj");
 
 	shadowMap = Framebuffer::shadowMap(2048, 2048);
 }
 
-void addCornellBox() {
+void addCornellBox(bool useTexture = false) {
+	auto *planeMesh = loadMesh("../assets/models/plane.obj");
+
 	scene.light = SpotLight(
 		vec3(0, 1, 0),
 		vec3(0, -1, 0),
-		vec3(3,3,3),
+		useTexture ? vec3(0) : vec3(3),
 		110.f, .5f
 		);
 
-	scene.add(Object(
-		"floor",
-		planeMesh,
-		Material(vec3(1)),
-		vec3(0,-1,0),
-		vec3(1,1,1),
-		quat(vec3(0,0,0))
-		));
+	if(useTexture) {
+		scene.add(Object(
+			"floor",
+			planeMesh,
+			Material(
+				loadTexture("../assets/suntemple/textures/M_FloorTiles2_Inst_0_BaseColor.jpg"),
+				loadTexture("../assets/suntemple/textures/M_FloorTiles2_Inst_0_Normal.jpg"),
+				loadTexture("../assets/suntemple/textures/M_FloorTiles2_Inst_0_Specular.jpg"),
+				blackTexture()
+				),
+			vec3(0,-1,0),
+			vec3(1,1,1),
+			quat(vec3(0,0,0))
+			));
+	} else {
+		scene.add(Object(
+			"floor",
+			planeMesh,
+			Material(vec3(1)),
+			vec3(0,-1,0),
+			vec3(1,1,1),
+			quat(vec3(0,0,0))
+			));
+	}
 	scene.add(Object(
 		"ceiling",
 		planeMesh,
@@ -258,14 +274,27 @@ void addCornellBox() {
 		vec3(1,1,1),
 		quat(vec3(pi,0,0))
 		));
-	scene.add(Object(
-		"wall",
-		planeMesh,
-		Material(vec3(1)),
-		vec3(0,0,-1),
-		vec3(1,1,1),
-		quat(vec3(pi*0.5,0,0))
-		));
+
+	if (useTexture) {
+		Texture *painting = loadTexture("../assets/textures/painting.jpg");
+		scene.add(Object(
+			"painting",
+			planeMesh,
+			Material(painting, normalTexture(), whiteTexture(), painting),
+			vec3(0,0,-1),
+			vec3(1,1,1),
+			quat(vec3(pi*0.5,0,0))
+			));
+	} else {
+		scene.add(Object(
+			"wall",
+			planeMesh,
+			Material(vec3(1)),
+			vec3(0,0,-1),
+			vec3(1,1,1),
+			quat(vec3(pi*0.5,0,0))
+			));
+	}
 	// scene.add(Object(
 	// 	"frontWall",
 	// 	planeMesh,
@@ -294,6 +323,8 @@ void addCornellBox() {
 }
 
 void bunnyScene() {
+	auto *bunnyMesh = loadMesh("../assets/models/bunny.obj");
+
 	addCornellBox();
 
 	scene.add(Object(
@@ -306,8 +337,10 @@ void bunnyScene() {
 		));	
 }
 
-void horseScene() {
-	addCornellBox();
+void horseScene(bool useTexture = false) {
+	auto *horseMesh = loadMesh("../assets/models/horse.obj");
+
+	addCornellBox(useTexture);
 
 	scene.add(Object(
 		"horse",
@@ -320,6 +353,8 @@ void horseScene() {
 }
 
 void benchScene() {
+	auto *sphereMesh = loadMesh("../assets/models/sphere.obj");
+
 	addCornellBox();
 
 	scene.add(Object(
@@ -341,19 +376,21 @@ void benchScene() {
 		));
 }
 
-void pbrScene() {
-	addCornellBox();
+void pbrScene(bool useTexture = false) {
+	auto *sphereMesh = loadMesh("../assets/models/sphere.obj");
+
+	addCornellBox(useTexture);
 
 	for (int i = 0; i <= 10; i++) {
-		for (int j = 0; j <= 10; j++) {
+		for (int j = 0; j <= 1; j++) {
 			float rough = (float)i/10.f;
-			float metal = (float)j/10.f;
+			float metal = (float)j/1.f;
 
 			float scale = 0.07f;
 			float ps = 0.8f;
 			float x = i*.2f*ps - ps;
-			float z = j*.2f*ps - ps;
-			float y = -0.8f;
+			float z = 0.0;
+			float y = j*.5f - 0.5f;
 
 			scene.add(Object(
 				"sphere" + std::to_string(i) + "_" + std::to_string(j),
@@ -369,6 +406,7 @@ void pbrScene() {
 
 }
 
+
 void templeScene() {
 	scene.light = SpotLight(
 		vec3(0, 0.2, -0.5),
@@ -379,8 +417,6 @@ void templeScene() {
 
 	loadScene(scene, "../assets/suntemple/suntemple.obj");
 }
-
-#include <fast_obj.h>
 
 int main() {
 	System::init(4, 6);
@@ -422,7 +458,7 @@ int main() {
 
 
 	loadAssets();
-	templeScene();
+	horseScene(true);
 
 	initVoxelize();
 
@@ -530,6 +566,9 @@ int main() {
 			activeShader->set("u_project", cam.final);
 			activeShader->set("u_cameraPos", cam.pos);
 
+			activeShader->set("u_tracedShadows", enableTracedShadows);
+			activeShader->set("u_shadowAperture", shadowAperture);
+
 			activeShader->set("u_indirectLight", enableIndirectLight);
 			activeShader->set("u_voxelCount", voxelCount);
 			activeShader->set("u_diffuseNoise", addDiffuseNoise);
@@ -538,11 +577,11 @@ int main() {
 			voxelTexture->bind(1);
 			activeShader->set("u_voxelTexture", 1);
 			activeShader->set("u_aniso", anisotropicVoxels);
-			if (anisotropicVoxels) {
-				for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < 6; i++) {
+				if (anisotropicVoxels) {
 					voxelTextureAniso[i]->bind(i+2);
-					activeShader->setIndex("u_voxelTextureAniso", i, i+2);
 				}
+				activeShader->setIndex("u_voxelTextureAniso", i, i+2);
 			}
 
 			activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
@@ -570,6 +609,7 @@ int main() {
 					ImGui::DragFloat3("Scale", &obj.scale.x, 0.05f);
 					ImGui::ColorEdit3("Diffuse", (float *)&obj.mat.diffuse);
 					ImGui::ColorEdit3("Emission", (float *)&obj.mat.emission);
+					ImGui::DragFloat("Emission Scale", &obj.mat.emissionScale, 0.1f);
 					ImGui::SliderFloat("Roughness", &obj.mat.rough, 0.f, 1.f);
 					ImGui::SliderFloat("Metalness", &obj.mat.metal, 0.f, 1.f);
 					ImGui::TreePop();
@@ -635,7 +675,7 @@ int main() {
 			ImGui::Checkbox("Add Diffuse Noise", &addDiffuseNoise);
 			ImGui::Checkbox("Enable Traced Shadows", &enableTracedShadows);
 			if (enableTracedShadows) {
-				ImGui::SliderFloat("Traced Shadow Aperture", &tracedShadowAperture, 0.1f, 90.f, "%.01f");
+				ImGui::SliderFloat("Traced Shadow Aperture", &shadowAperture, 0.1f, 90.f, "%.01f");
 			}
 		}
 		ImGui::SliderFloat("Diffuse restitution", &restitution, 0, 1, "%.01f");

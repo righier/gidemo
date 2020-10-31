@@ -1,0 +1,237 @@
+# Blender MTL File: 'untitled.blend'
+# Material Count: 18
+
+newmtl M_Arch_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Arch_Inst_0_Normal.jpg
+map_Kd textures\\M_Arch_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Arch_Inst_0_Specular.jpg
+
+newmtl M_Arch_Inst_Red_2
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Arch_Inst_Red_2_0_Normal.jpg
+map_Kd textures\\M_Arch_Inst_Red_2_0_BaseColor.jpg
+map_Ks textures\\M_Arch_Inst_Red_2_0_Specular.jpg
+
+newmtl M_BottomTrim_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_BottomTrim_Inst_0_Normal.jpg
+map_Kd textures\\M_BottomTrim_Inst_0_BaseColor.jpg
+map_Ks textures\\M_BottomTrim_Inst_0_Specular.jpg
+
+newmtl M_BottomTrim_Inst_Black
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_BottomTrim_Inst_Black_0_Normal.jpg
+map_Kd textures\\M_BottomTrim_Inst_Black_0_BaseColor.jpg
+map_Ks textures\\M_BottomTrim_Inst_Black_0_Specular.jpg
+
+newmtl M_Dome_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Dome_Inst_0_Normal.jpg
+map_Kd textures\\M_Dome_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Dome_Inst_0_Specular.jpg
+
+newmtl M_FirePit_Inst_Glow
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.500000 0.500000 0.500000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_FirePit_Inst_Glow_0_Normal.jpg
+map_Kd textures\\M_FirePit_Inst_Glow_0_BaseColor.jpg
+map_Ke textures\\M_FirePit_Inst_Glow_0_Emissive.jpg
+map_Ks textures\\M_FirePit_Inst_Glow_0_Specular.jpg
+
+newmtl M_FirePit_Inst_nofire
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_FirePit_Inst_nofire_0_Normal.jpg
+map_Kd textures\\M_FirePit_Inst_nofire_0_BaseColor.jpg
+map_Ks textures\\M_FirePit_Inst_nofire_0_Specular.jpg
+
+newmtl M_FloorTiles1_Inst_Inst2
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_FloorTiles1_Inst_Inst2_0_Normal.jpg
+map_Kd textures\\M_FloorTiles1_Inst_Inst2_0_BaseColor.jpg
+map_Ks textures\\M_FloorTiles1_Inst_Inst2_0_Specular.jpg
+
+newmtl M_FloorTiles2_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_FloorTiles2_Inst_0_Normal.jpg
+map_Kd textures\\M_FloorTiles2_Inst_0_BaseColor.jpg
+map_Ks textures\\M_FloorTiles2_Inst_0_Specular.jpg
+
+newmtl M_FloorTiles2_Inst_Inst_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_FloorTiles2_Inst_Inst_Inst_0_Normal.jpg
+map_Kd textures\\M_FloorTiles2_Inst_Inst_Inst_0_BaseColor.jpg
+map_Ks textures\\M_FloorTiles2_Inst_Inst_Inst_0_Specular.jpg
+
+newmtl M_Pillar_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Pillar_Inst_0_Normal.jpg
+map_Kd textures\\M_Pillar_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Pillar_Inst_0_Specular.jpg
+
+newmtl M_Pillar_Inst_Colored
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Pillar_Inst_Colored_0_Normal.jpg
+map_Kd textures\\M_Pillar_Inst_Colored_0_BaseColor.jpg
+map_Ks textures\\M_Pillar_Inst_Colored_0_Specular.jpg
+
+newmtl M_Railing_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Railing_Inst_0_Normal.jpg
+map_Kd textures\\M_Railing_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Railing_Inst_0_Specular.jpg
+
+newmtl M_Railing_Inst.001
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Railing_Inst_0_Normal.jpg
+map_Kd textures\\M_Railing_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Railing_Inst_0_Specular.jpg
+
+newmtl M_Shield_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Shield_Inst_0_Normal.jpg
+map_Kd textures\\M_Shield_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Shield_Inst_0_Specular.jpg
+
+newmtl M_Statue_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Statue_Inst_0_Normal.jpg
+map_Kd textures\\M_Statue_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Statue_Inst_0_Specular.jpg
+
+newmtl M_StoneBrickWall_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_StoneBrickWall_Inst_0_Normal.jpg
+map_Kd textures\\M_StoneBrickWall_Inst_0_BaseColor.jpg
+map_Ks textures\\M_StoneBrickWall_Inst_0_Specular.jpg
+
+newmtl M_Trim_Inst
+Ns 179.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Bump textures\\M_Trim_Inst_0_Normal.jpg
+map_Kd textures\\M_Trim_Inst_0_BaseColor.jpg
+map_Ks textures\\M_Trim_Inst_0_Specular.jpg

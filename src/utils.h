@@ -15,7 +15,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #pragma warning(pop)
 
-
 using glm::vec2;
 using glm::vec3;
 using glm::vec4;
@@ -48,3 +47,6 @@ u32 hash(const void *buffer, int size);
 
 std::wstring s2ws(const std::string &str);
 std::string ws2s(const std::wstring& wstr);
+
+
+float randomf();

@@ -7,6 +7,7 @@ in vec2 b_uv;
 
 uniform vec3 u_diffuse;
 uniform vec3 u_emission;
+uniform float u_emissionScale;
 uniform float u_metal;
 uniform float u_rough;
 
@@ -184,7 +185,7 @@ vec3 myTracing(vec3 from, vec3 dir, float apertureTan2) {
     if (!u_aniso) cc = cc * pow(2, lod);
     color += (1 - color.a) * cc;
 
-    dist += diameter * 0.3;
+    dist += diameter * 1;
   }
   // return vec3(1);
 
@@ -202,15 +203,19 @@ vec3 myDiffuse() {
 
   #define CONES 5
 
-  const vec3 cones[5] = vec3[5](
-    vec3(0, 0, 1),
-    vec3(1, 0, 1),
-    vec3(-1, 0, 1),
-    vec3(0, 1, 1),
-    vec3(0, -1, 1)
+  const vec3 cones[9] = vec3[9]( 
+    vec3(0,0,1), 
+    vec3(1,0,1), 
+    vec3(-1,0,1), 
+    vec3(0,1,1), 
+    vec3(0,-1,1),
+    vec3(1,1,.5),
+    vec3(1,-1,.5),
+    vec3(-1,1,.5),
+    vec3(-1,-1,.5)
     );
 
-  const float weight[5] = float[5]( 1, 0.2, 0.2, 0.2, 0.2);
+  const float w[9] = float[9]( 1, 0.5, 0.5, 0.5, 0.5, 0.3, 0.3, 0.3, 0.3);
 
   float apertureAngle = 30;
   float apertureTan2 = 2 * tan(radians(apertureAngle)/2);
@@ -219,7 +224,7 @@ vec3 myDiffuse() {
   vec3 xtan, ytan;
  
   // xtan = ortho(normal);
-  xtan = random3(pos * time);
+  xtan = random3(pos + time);
   ytan = cross(normal, xtan);
   xtan = cross(normal, ytan);
   // ytan = cross(xtan, normal);
@@ -228,7 +233,7 @@ vec3 myDiffuse() {
 
   for (int i = 0; i < CONES; i++) {
     vec3 dir = tanSpace * cones[i];
-    color += weight[i] * myTracing(pos, normalize(dir), apertureTan2);
+    color += myTracing(pos, normalize(dir), apertureTan2);
   }
 
 
@@ -295,6 +300,7 @@ void main(){
 		emission *= pow(texture(u_emissionMap, b_uv).rgb, vec3(gammaTextures));
 	}
 
+	emission *= u_emissionScale;
 
 	float rougness = u_rough;
 	float metalness = u_metal;
@@ -315,7 +321,6 @@ void main(){
 	}
 	color += emission;
 
-	// color = vec3(shadow()/10);
 	vec4 val = vec4(color, 1.0f);
 
 	vec3 posVoxelSpace = toVoxel(b_pos) * 0.999f;
