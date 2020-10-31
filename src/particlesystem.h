@@ -37,7 +37,7 @@ struct AnimProp {
 		interpExp(exp) { }
 
 	AnimProp(const AnimProp &p):
-		AnimProp(p.startVal, p.endVal, p.exp);
+		AnimProp(p.startVal, p.endVal, p.exp) { }
 
 	AnimProp(const Prop<T> &val, float exp = 1.f):
 		AnimProp(val, val, exp) { }
@@ -60,20 +60,20 @@ struct Particle {
 
 struct ParticleSystem {
 	Prop<float> life = Prop<float>(3.f);
-	Prop<vec3> pos(vec3(0), vec3(1));
-	Prop<vec3> vel(vec3(1));
-	Prop<vec3> acc(vec3(0));
-	AnimProp<vec3> scale(vec3(1.f));
-	AnimProp<vec3> color(vec3(1));
-	AnimProp<float> opacity(1.f, 0.f);
-	AnimProp<float> faceIn(.1f);
+	Prop<vec3> pos = Prop<vec3>(vec3(0), vec3(1));
+	Prop<vec3> vel = Prop<vec3>(vec3(1));
+	Prop<vec3> acc = Prop<vec3>(vec3(0));
+	AnimProp<vec3> scale = AnimProp<vec3>(vec3(1.f));
+	AnimProp<vec3> color = AnimProp<vec3>(vec3(1));
+	AnimProp<float> opacity = AnimProp<float>(1.f, 0.f);
+	AnimProp<float> faceIn = AnimProp<float>(.1f);
 
 	u32 count;
 
 	Texture *texture;
 
 	Particle simulate(Random &r) {
-		double cycle = (float)life->val(r);
+		double cycle = (float)(life.val(r));
 	}
 
 	void render(double time) {
