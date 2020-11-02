@@ -69,7 +69,7 @@ void AssetStore::update() {
 		if (it != deps.end()) {
 			System::sleep(0.1);
 			Asset *asset = it->second;
-			asset->load();
+			asset->checkAndLoad();
 		}
 
 	}

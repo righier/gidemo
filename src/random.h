@@ -42,7 +42,7 @@ struct Random {
 
 	template <>
 	float next() {
-		auto x = next<u32>();
+		auto x = nextInt();
 		return (float)x / (float)(1ULL<<32ULL);
 	}
 

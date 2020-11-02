@@ -54,19 +54,24 @@ Framebuffer *shadowMap;
 Camera cam;
 
 bool enableIndirectLight = true;
+
+char *renderModeText[] = {"Direct Light", "Indirect Diffuse", "Indirect Specular", "Global Illumination"};
+int renderMode = 3;
 int voxelCount = 128;
 
 bool dynamicVoxelize = true;
-bool customMipmap = true;
+bool customMipmap = false;
 bool averageConflictingValues = false;
-bool anisotropicVoxels = true;
+bool anisotropicVoxels = false;
+string anisoHeader[] = {"", "#define ANISO\n"};
 bool hdrVoxels = true;
 bool temporalMultibounce = true;
 bool addDiffuseNoise = true;
 
-float restitution = 0.8f;
+float multibounceRestitution = 0.4f;
+float restitution = 0.4f;
 
-bool enableTracedShadows = true;
+bool enableTracedShadows = false;
 float shadowAperture = 5;
 
 bool toggleVoxels = false;
@@ -74,9 +79,13 @@ float voxelLod = 0;
 int voxelIndex = 0;
 float visualizeQuality = 10.0f;
 
+bool depthPrepass = true;
+
 bool lockfps = false;
 bool vsyncStatus = false;
 int targetfps = 5;
+
+
 
 void initVoxelize() {
 	if (anisotropicVoxels) {
@@ -89,11 +98,11 @@ void initVoxelize() {
 	}
 }
 
-void disposeVoxels() {
+void disposeVoxels(bool flip = false) {
 	voxelTexture->dispose();
 	delete voxelTexture;
 
-	if (anisotropicVoxels) {
+	if (anisotropicVoxels ^ flip) {
 		for (int i = 0; i < 6; i++) {
 			voxelTextureAniso[i]->dispose();
 			delete voxelTextureAniso[i];
@@ -101,7 +110,7 @@ void disposeVoxels() {
 	}
 }
 
-void renderShadowMap() {
+void renderShadowMap(double time) {
 
 	shadowShader->bind();
 	shadowShader->set("u_project", scene.light.getProjectionMatrix());
@@ -114,12 +123,11 @@ void renderShadowMap() {
 	glEnable(GL_DEPTH_TEST);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	scene.draw(shadowShader);
+	scene.draw(time, shadowShader, false);
 
-	// glCullFace(GL_BACK);
 }
 
-void voxelize(float time) {
+void voxelize(double time) {
 
 	if (!dynamicVoxelize) return;
 
@@ -148,30 +156,29 @@ void voxelize(float time) {
 	voxelizeShader->set("u_temporalMultibounce", temporalMultibounce);
 	voxelizeShader->set("u_aniso", anisotropicVoxels);
 	voxelizeShader->set("u_voxelCount", voxelCount);
-	voxelizeShader->set("u_time", time);
-	voxelizeShader->set("u_restitution", restitution);
+	voxelizeShader->set("u_time", (float)time);
+	voxelizeShader->set("u_restitution", multibounceRestitution);
 
 	if (!anisotropicVoxels) {
 		voxelTexture->bind(8);
-	}
-	voxelizeShader->set("u_voxelTexturePrev", 8);
-
-	for (int i = 0; i < 6; i++) {
-		if (anisotropicVoxels) {
+		voxelizeShader->set("u_voxelTexturePrev", 8);
+	} else {
+		for (int i = 0; i < 6; i++) {
 			voxelTextureAniso[i]->bind(i+2);
+			voxelizeShader->setIndex("u_voxelTexturePrev", i, i+2);
 		}
-		voxelizeShader->setIndex("u_voxelTextureAniso", i, i+2);
 	}
 
-	scene.draw(voxelizeShader);
+
+	scene.draw(time, voxelizeShader);
 	//render
 
-	if (averageConflictingValues && !hdrVoxels) {
+	// if (averageConflictingValues && !hdrVoxels) {
 		fixopacityShader->bind();
 		fixopacityShader->set("u_voxel", 0);
 		glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, voxelTexture->storageType);
 		fixopacityShader->dispatch(voxelCount, voxelCount, voxelCount);
-	}
+	// }
 
 	if (anisotropicVoxels) {
 		for (int dir = 0; dir < 6; dir++) {
@@ -215,17 +222,28 @@ void showVoxels() {
 
 }
 
+void recompileShaders() {
+	voxelizeShader->header = anisoHeader[anisotropicVoxels];
+	visualizeShader->header = anisoHeader[anisotropicVoxels];
+	voxelConeShader->header = anisoHeader[anisotropicVoxels];
+	mipmapShader->header = anisoHeader[anisotropicVoxels];
+	voxelizeShader->load();
+	visualizeShader->load();
+	voxelConeShader->load();
+	mipmapShader->load();
+}
+
 void loadAssets() {
 
-	flatShader = assets.add("flat_shader", new Shader("flat.vert", "flat.frag"));
-	basicShader = assets.add("basic_shader", new Shader("basic.vert", "basic.frag"));
-	voxelizeShader = assets.add("voxelize_shader", new Shader("voxelize.vert", "voxelize.geom", "voxelize.frag"));
-	visualizeShader = assets.add("visualize_shader", new Shader("showvoxels.vert", "showvoxels.frag"));
-	voxelConeShader = assets.add("voxel_cone_shader", new Shader("voxelcone.vert", "voxelcone.frag"));
-	shadowShader = assets.add("shadow_shader", new Shader("shadow.vert", "shadow.frag"));
+	flatShader = assets.add("flat_shader", new Shader("flat.vert", "flat.frag", ""));
+	basicShader = assets.add("basic_shader", new Shader("basic.vert", "basic.frag", ""));
+	voxelizeShader = assets.add("voxelize_shader", new Shader("voxelize.vert", "voxelize.geom", "voxelize.frag", anisoHeader[anisotropicVoxels]));
+	visualizeShader = assets.add("visualize_shader", new Shader("showvoxels.vert", "showvoxels.frag", anisoHeader[anisotropicVoxels]));
+	voxelConeShader = assets.add("voxel_cone_shader", new Shader("voxelcone.vert", "voxelcone.frag", anisoHeader[anisotropicVoxels]));
+	shadowShader = assets.add("shadow_shader", new Shader("shadow.vert", "shadow.frag", ""));
 
-	mipmapShader = assets.add("mipmap_shader", new Shader("mipmap.comp"));
-	fixopacityShader = assets.add("fixopacity_shader", new Shader("fixopacity.comp"));
+	mipmapShader = assets.add("mipmap_shader", new Shader("mipmap.comp", anisoHeader[anisotropicVoxels]));
+	fixopacityShader = assets.add("fixopacity_shader", new Shader("fixopacity.comp", ""));
 
 	cubeMesh = loadMesh("../assets/models/cube.obj");
 
@@ -376,6 +394,10 @@ void benchScene() {
 		));
 }
 
+void particleScene() {
+	scene.add(ParticleSystem());
+}
+
 void pbrScene(bool useTexture = false) {
 	auto *sphereMesh = loadMesh("../assets/models/sphere.obj");
 
@@ -415,7 +437,22 @@ void templeScene() {
 		70.f, 20.f
 		);	
 
+	shadowBias = 0.00006f;
+
 	loadScene(scene, "../assets/suntemple/suntemple.obj");
+
+	auto statueBase = scene.get("BottomTrim_Inst_Black");
+	statueBase->mat.rough = 0.3f;
+
+	auto floor1 = scene.get("FloorTiles1_Inst_Inst2");
+	auto floor2 = scene.get("FloorTiles2_Inst");
+	auto floor3 = scene.get("FloorTiles2_Inst_Inst_Inst");
+	floor1->mat.rough = 0.3f;
+	floor2->mat.rough = 0.3f;
+	floor3->mat.rough = 0.3f;
+
+	auto fire = scene.get("FirePit_Inst_Glow");
+	fire->mat.emissionScale = 1000.f;
 }
 
 int main() {
@@ -457,8 +494,10 @@ int main() {
 	int updateCount = 0;
 
 
+	templeScene();
+	// horseScene(false);
+	// particleScene();
 	loadAssets();
-	horseScene(true);
 
 	initVoxelize();
 
@@ -541,34 +580,55 @@ int main() {
 		cam.move(move);
 		cam.update();
 
-		renderShadowMap();
+		renderShadowMap(time);
 
-		voxelize((float)time);
+		voxelize(time);
 
 		Framebuffer::reset();
 		glViewport(0, 0, (int)winSize.x, (int)winSize.y);
-		glEnable(GL_BLEND);
 
+		glEnable(GL_BLEND);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
 
 		glEnable(GL_DEPTH_TEST);
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glDepthFunc(GL_LEQUAL);
 
-		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		if (depthPrepass && !toggleVoxels) {
+			// glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+			// glDepthFunc(GL_LESS);
+
+			shadowShader->bind();
+			Framebuffer::reset();
+			shadowShader->set("u_project", cam.final);
+
+			scene.draw(time, shadowShader, true);
+
+			// glDepthFunc(GL_EQUAL);
+			// glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		}
+
+		// glDisable(GL_BLEND);
+		// glEnable(GL_CULL_FACE);
+		// glCullFace(GL_BACK);
+
 
 		if (!toggleVoxels) {
 
 
 			activeShader->bind();
+			Framebuffer::reset();
 			activeShader->set("u_project", cam.final);
 			activeShader->set("u_cameraPos", cam.pos);
 
 			activeShader->set("u_tracedShadows", enableTracedShadows);
 			activeShader->set("u_shadowAperture", shadowAperture);
 
+			activeShader->set("u_renderMode", renderMode);
 			activeShader->set("u_indirectLight", enableIndirectLight);
 			activeShader->set("u_voxelCount", voxelCount);
 			activeShader->set("u_diffuseNoise", addDiffuseNoise);
@@ -591,7 +651,7 @@ int main() {
 
 			activeShader->set("u_time", (float)time);
 
-			scene.draw(activeShader);
+			scene.draw(time, activeShader);
 
 		} else {
 			showVoxels();
@@ -599,87 +659,109 @@ int main() {
 
 		updateCount++;
 
-		ImGui::Begin("Scene editor");
+		if (showCursor) {
+			ImGui::Begin("Scene editor");
 
-		if (ImGui::CollapsingHeader("Objects")) {
-			for (u32 i = 0; i < scene.objects.size(); i++) {
-				auto &obj = scene.objects[i];
-				if (ImGui::TreeNode(obj.name.c_str())) {
-					ImGui::DragFloat3("Pos", &obj.pos.x, 0.05f);
-					ImGui::DragFloat3("Scale", &obj.scale.x, 0.05f);
-					ImGui::ColorEdit3("Diffuse", (float *)&obj.mat.diffuse);
-					ImGui::ColorEdit3("Emission", (float *)&obj.mat.emission);
-					ImGui::DragFloat("Emission Scale", &obj.mat.emissionScale, 0.1f);
-					ImGui::SliderFloat("Roughness", &obj.mat.rough, 0.f, 1.f);
-					ImGui::SliderFloat("Metalness", &obj.mat.metal, 0.f, 1.f);
-					ImGui::TreePop();
+			if (ImGui::CollapsingHeader("Objects")) {
+				for (u32 i = 0; i < scene.objects.size(); i++) {
+					auto &obj = scene.objects[i];
+					if (ImGui::TreeNode(obj.name.c_str())) {
+						ImGui::DragFloat3("Pos", &obj.pos.x, 0.05f);
+						ImGui::DragFloat3("Scale", &obj.scale.x, 0.05f);
+						ImGui::ColorEdit3("Diffuse", (float *)&obj.mat.diffuse);
+						ImGui::ColorEdit3("Emission", (float *)&obj.mat.emission);
+						ImGui::DragFloat("Emission Scale", &obj.mat.emissionScale, 0.1f);
+						ImGui::SliderFloat("Roughness", &obj.mat.rough, 0.f, 1.f);
+						ImGui::SliderFloat("Metalness", &obj.mat.metal, 0.f, 1.f);
+						ImGui::TreePop();
+					}
 				}
 			}
-		}
 
-		if (ImGui::CollapsingHeader("Light")) {
-			ImGui::DragFloat3("Pos", &scene.light.pos.x, 0.1f);
-			ImGui::DragFloat3("Dir", &scene.light.dir.x, 0.1f);
-			ImGui::DragFloat3("Color", &scene.light.color.x, 0.1f);
-			ImGui::SliderFloat("Angle", &scene.light.angle, 0.f, 180.f);
-			ImGui::SliderFloat("Smooth", &scene.light.smooth, 0.f, 180.f);
-			ImGui::SliderFloat("Bias", &shadowBias, -0.00001f, 0.001f, "%.5f", 1.0f);
-		}
+			if (ImGui::CollapsingHeader("Particle Systems")) {
 
-		ImGui::End();
+				auto uiShow = [](const string &name, Prop<float> &p) {
 
-		ImGui::Begin("Renderer");
-		ImGui::Checkbox("lock FPS", &lockfps);
-		if (ImGui::Checkbox("vsync", &vsyncStatus)) {
-			Window::setVSyncStatus(vsyncStatus);
-		}
+				};
 
-		ImGui::SliderInt("FPS target", &targetfps, 1, 120);
-
-    	int prevVoxelCount = voxelCount;
-    	const char* voxelCounts[] = {"16", "32", "64", "128", "256", "512", "1024"};
-
-    	int currVolumeItem = (int)round(log2(prevVoxelCount/16));
-
-    	ImGui::Combo("Volume Size", &currVolumeItem, voxelCounts, 7);
-
-    	voxelCount = (1 << currVolumeItem) * 16;
-
-    	if (voxelCount != prevVoxelCount) {
-    		LOG("changed voxel count");
-    		disposeVoxels();
-    		initVoxelize();
-    	}
-
-		ImGui::Checkbox("Dynamic Voxelization", &dynamicVoxelize);
-		ImGui::Checkbox("Average Conflicting Values", &averageConflictingValues);
-		ImGui::Checkbox("Custom mipmap", &customMipmap);
-		if (ImGui::Checkbox("Anisotropic Voxels", &anisotropicVoxels)) {
-			disposeVoxels();
-			initVoxelize();
-		}
-		if (ImGui::Checkbox("HDR Voxels", &hdrVoxels)) {
-			disposeVoxels();
-			initVoxelize();
-		}
-		ImGui::Checkbox("Temporal Multibounce", &temporalMultibounce);
-		ImGui::Checkbox("Show Voxels", &toggleVoxels);
-		if (toggleVoxels) {
-			ImGui::SliderFloat("Quality", &visualizeQuality, 1, 50);
-			ImGui::SliderFloat("LOD", &voxelLod, 0.f, log2f((float)voxelCount)+1.f, "%.0f");
-			if (anisotropicVoxels) {
-				ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
+				for (u32 i = 0; i < scene.particles.size(); i++) {
+					auto &ps = scene.particles[i];
+					if (ImGui::TreeNode(std::to_string(i).c_str())) {
+						uiShow("Particle life", ps.life);
+					}
+				}
 			}
-		} else {
-			ImGui::Checkbox("Enable Indirect Light", &enableIndirectLight);
-			ImGui::Checkbox("Add Diffuse Noise", &addDiffuseNoise);
-			ImGui::Checkbox("Enable Traced Shadows", &enableTracedShadows);
-			if (enableTracedShadows) {
-				ImGui::SliderFloat("Traced Shadow Aperture", &shadowAperture, 0.1f, 90.f, "%.01f");
+
+			if (ImGui::CollapsingHeader("Light")) {
+				ImGui::DragFloat3("Pos", &scene.light.pos.x, 0.1f);
+				ImGui::DragFloat3("Dir", &scene.light.dir.x, 0.1f);
+				ImGui::DragFloat3("Color", &scene.light.color.x, 0.1f);
+				ImGui::SliderFloat("Angle", &scene.light.angle, 0.f, 180.f);
+				ImGui::SliderFloat("Smooth", &scene.light.smooth, 0.f, 180.f);
+				ImGui::SliderFloat("Bias", &shadowBias, -0.00001f, 0.001f, "%.5f", 1.0f);
 			}
+
+			ImGui::End();
+
+			ImGui::Begin("Renderer");
+			ImGui::Checkbox("lock FPS", &lockfps);
+			if (ImGui::Checkbox("vsync", &vsyncStatus)) {
+				Window::setVSyncStatus(vsyncStatus);
+			}
+
+			ImGui::SliderInt("FPS target", &targetfps, 1, 120);
+
+			int prevVoxelCount = voxelCount;
+			const char* voxelCounts[] = {"16", "32", "64", "128", "256", "512", "1024"};
+
+			int currVolumeItem = (int)round(log2(prevVoxelCount/16));
+
+			ImGui::Combo("Volume Size", &currVolumeItem, voxelCounts, 7);
+
+			voxelCount = (1 << currVolumeItem) * 16;
+
+			if (voxelCount != prevVoxelCount) {
+				LOG("changed voxel count");
+				disposeVoxels();
+				initVoxelize();
+			}
+
+			ImGui::Checkbox("Dynamic Voxelization", &dynamicVoxelize);
+			ImGui::Checkbox("Average Conflicting Values", &averageConflictingValues);
+			ImGui::Checkbox("Custom mipmap", &customMipmap);
+			if (ImGui::Checkbox("Anisotropic Voxels", &anisotropicVoxels)) {
+				disposeVoxels(true);
+				initVoxelize();
+				recompileShaders();
+			}
+			if (ImGui::Checkbox("HDR Voxels", &hdrVoxels)) {
+				disposeVoxels();
+				initVoxelize();
+			}
+			ImGui::Checkbox("Temporal Multibounce", &temporalMultibounce);
+			if (temporalMultibounce) {
+				ImGui::SliderFloat("Multibounce restitution", &multibounceRestitution, 0, 1, "%.3f");
+			}
+			ImGui::Checkbox("Show Voxels", &toggleVoxels);
+			if (toggleVoxels) {
+				ImGui::SliderFloat("Quality", &visualizeQuality, 1, 50);
+				ImGui::SliderFloat("LOD", &voxelLod, 0.f, log2f((float)voxelCount+1.f), "%.0f");
+				if (anisotropicVoxels) {
+					ImGui::SliderInt("Dir", &voxelIndex, 0, 5);
+				}
+			} else {
+				ImGui::Checkbox("Depth Prepass", &depthPrepass);
+				ImGui::Combo("Render Mode", &renderMode, renderModeText, 4);
+				ImGui::Checkbox("Add Diffuse Noise", &addDiffuseNoise);
+				ImGui::Checkbox("Enable Traced Shadows", &enableTracedShadows);
+				if (enableTracedShadows) {
+					ImGui::SliderFloat("Traced Shadow Aperture", &shadowAperture, 0.1f, 90.f, "%.01f");
+				}
+			}
+			ImGui::SliderFloat("Diffuse restitution", &restitution, 0, 1, "%.3f");
+			ImGui::End();	
 		}
-		ImGui::SliderFloat("Diffuse restitution", &restitution, 0, 1, "%.01f");
-		ImGui::End();
+
 
 		Window::update();
 	}

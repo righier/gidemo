@@ -1,4 +1,3 @@
-#version 460 core
 
 layout (location = 0) in vec3 i_position;
 layout (location = 1) in vec2 i_uv;
@@ -19,8 +18,8 @@ uniform mat4 u_lightProj;
 
 void main() {
 	vec4 pos = u_transform * vec4(i_position, 1.0f);
-	a_pos = pos.xyz;
 	gl_Position = u_project * pos;
+	a_pos = pos.xyz;
 	a_posls = u_lightProj * pos;
 
 	mat3 rotate = mat3(transpose(inverse(u_transform)));

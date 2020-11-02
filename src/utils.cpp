@@ -12,10 +12,12 @@ bool readFile(const std::string &path, std::string &s) {
 	fopen_s(&f, path.c_str(), "rb");
 	if (!f) return false;
 
+	size_t startSize = s.size();
+
 	fseek(f, 0, SEEK_END);
-	s.resize(ftell(f));
+	s.resize(ftell(f) + startSize);
 	rewind(f);
-	fread(&s[0], 1, s.size(), f);
+	fread(&s[startSize], 1, s.size(), f);
 	if (ferror(f)) return false;
 	fclose(f);
 

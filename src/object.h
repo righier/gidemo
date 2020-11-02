@@ -83,10 +83,10 @@ struct Object {
 		return t;
 	}
 
-	void draw(Shader *shader) {
+	void draw(Shader *shader, bool useMaterial = true) {
 		mat4 transform = genMatrix();
 		shader->set("u_transform", transform);
-		mat.bind(shader);
+		if (useMaterial) mat.bind(shader);
 		mesh->draw();
 	}
 };

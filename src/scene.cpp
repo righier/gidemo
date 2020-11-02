@@ -6,7 +6,7 @@
 
 
 #include <unordered_map>
-#include <fast_obj.h>
+#include "fast_obj.h"
 
 void loadScene(Scene &scene, const char *path) {
 	LOG("loading scene:", path);

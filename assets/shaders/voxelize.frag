@@ -1,7 +1,8 @@
-#version 460 core
 
 in vec3 b_pos;
 in vec3 b_normal;
+in vec3 b_xtan;
+in vec3 b_ytan;
 in vec4 b_posls;
 in vec2 b_uv;
 
@@ -13,7 +14,7 @@ uniform float u_rough;
 
 uniform bool u_useMaps;
 uniform sampler2D u_diffuseMap;
-// uniform sampler2D u_bumpMap;
+uniform sampler2D u_bumpMap;
 // uniform sampler2D u_specMap;
 uniform sampler2D u_emissionMap;
 
@@ -30,7 +31,6 @@ uniform bool u_averageValues;
 uniform float u_restitution;
 
 uniform int u_voxelCount;
-uniform bool u_aniso;
 uniform bool u_temporalMultibounce;
 
 uniform float u_time;
@@ -40,28 +40,39 @@ uniform sampler2D u_shadowMap;
 
 layout(RGBA8) uniform image3D u_voxelTexture;
 
-uniform sampler3D u_voxelTextureAniso[6];
+#ifdef ANISO
+uniform sampler3D u_voxelTexturePrev[6];
+#else
 uniform sampler3D u_voxelTexturePrev;
+#endif
 
 float voxelSize = 1.0f / float(u_voxelCount);
 
 const float PI = 3.14159265359;
 
 vec4 fetch(vec3 dir, vec3 pos, float lod) {
-	pos = clamp(pos, vec3(0), vec3(1));
-	if (u_aniso) {
-		bvec3 sig = greaterThan(dir, vec3(0.0f));
-		float l2 = lod;
-		vec4 cx = sig.x ? textureLod(u_voxelTextureAniso[1], pos, l2) : textureLod(u_voxelTextureAniso[0], pos, l2);
-		vec4 cy = sig.y ? textureLod(u_voxelTextureAniso[3], pos, l2) : textureLod(u_voxelTextureAniso[2], pos, l2);
-		vec4 cz = sig.z ? textureLod(u_voxelTextureAniso[5], pos, l2) : textureLod(u_voxelTextureAniso[4], pos, l2);
+	// pos = clamp(pos, vec3(0), vec3(1));
+#ifdef ANISO
+	bvec3 sig = greaterThan(dir, vec3(0.0f));
+	float l2 = lod;
 
-		vec3 sd = dir * dir; 
-		vec4 c1 = sd.x * cx + sd.y * cy + sd.z * cz;
-		return c1;
-	} else {
-		return textureLod(u_voxelTexturePrev, pos, max(1, lod));
-	}
+#if 0
+	vec4 cx = sig.x ? textureLod(u_voxelTexturePrev[1], pos, l2) : textureLod(u_voxelTexturePrev[0], pos, l2);
+	vec4 cy = sig.y ? textureLod(u_voxelTexturePrev[3], pos, l2) : textureLod(u_voxelTexturePrev[2], pos, l2);
+	vec4 cz = sig.z ? textureLod(u_voxelTexturePrev[5], pos, l2) : textureLod(u_voxelTexturePrev[4], pos, l2);
+#else
+	vec4 cx = textureLod(u_voxelTexturePrev[int(sig.x)], pos, l2);
+	vec4 cy = textureLod(u_voxelTexturePrev[2+int(sig.y)], pos, l2);
+	vec4 cz = textureLod(u_voxelTexturePrev[4+int(sig.z)], pos, l2);
+#endif
+
+
+	vec3 sd = dir * dir; 
+	vec4 c1 = sd.x * cx + sd.y * cy + sd.z * cz;
+	return c1;
+#else
+	return textureLod(u_voxelTexturePrev, pos, max(1, lod));
+#endif
 }
 
 float shadow() {
@@ -92,7 +103,7 @@ float shadow() {
 	return total;
 }
 
-vec3 spotlight() {
+vec3 spotlight(vec3 normal) {
 	vec3 spotDir = u_lightDir;
 	vec3 lightDir = u_lightPos - b_pos;
 	float dist = abs(length(lightDir));
@@ -101,14 +112,14 @@ vec3 spotlight() {
 	float intensity = smoothstep(u_lightOuterCos, u_lightInnerCos, angle);
 	float attenuation = 1.0 / (1.0 + dist);	
 	intensity *= attenuation;
-	intensity *= max(0, dot(b_normal, lightDir));
+	intensity *= max(0, dot(normal, lightDir));
 	if (intensity>0) intensity *= 1.0 - shadow();
 	return u_lightColor * intensity;
 }
 
 vec3 ortho(vec3 v) {
-  vec3 w = abs(dot(v, vec3(0,0,1))) < 0.999 ? vec3(0,0,1) : vec3(1,0,0);
-  return cross(v, w);
+  vec3 w = abs(dot(v, normalize(vec3(.1,0,1)))) < 0.999 ? vec3(.1,0,1) : vec3(1,0,0);
+  return normalize(cross(v, w));
 }
 
 bool insideVoxel(vec3 pos) {
@@ -180,24 +191,27 @@ vec3 myTracing(vec3 from, vec3 dir, float apertureTan2) {
     float diameter = max(voxelSize, dist * a2);
     float lod = log2(diameter * u_voxelCount);//* u_voxelCount);
     vec3 pos = from + dir * dist;
+    if (!insideVoxel(pos)) break;
     // color = vec4(color.rgb, 1) * color.a + (1 - color.a) * fetch(dir, pos, lod);
     vec4 cc = fetch(dir, pos, lod);
-    if (!u_aniso) cc = cc * pow(2, lod);
+#ifndef ANISO
+    cc = cc * pow(2, lod);
+#endif
     color += (1 - color.a) * cc;
 
-    dist += diameter * 1;
+    dist += diameter * 0.7;
   }
   // return vec3(1);
 
   return color.rgb;
 }
 
-vec3 myDiffuse() {
+vec3 myDiffuse(vec3 normal) {
   vec3 color = vec3(0);
 
   vec3 pos = toVoxel(b_pos);
   // pos = (floor(pos * 0.999 * u_voxelCount) + 0.5) * voxelSize;
-  vec3 normal = b_normal;
+  // vec3 normal = b_normal;
   pos += 8 * voxelSize * normal;
   // pos += 16 * voxelSize * normal;
 
@@ -209,22 +223,22 @@ vec3 myDiffuse() {
     vec3(-1,0,1), 
     vec3(0,1,1), 
     vec3(0,-1,1),
-    vec3(1,1,.5),
-    vec3(1,-1,.5),
-    vec3(-1,1,.5),
-    vec3(-1,-1,.5)
+    vec3(1,1,1),
+    vec3(1,-1,1),
+    vec3(-1,1,1),
+    vec3(-1,-1,1)
     );
 
   const float w[9] = float[9]( 1, 0.5, 0.5, 0.5, 0.5, 0.3, 0.3, 0.3, 0.3);
 
-  float apertureAngle = 30;
+  float apertureAngle = 55;
   float apertureTan2 = 2 * tan(radians(apertureAngle)/2);
 
 
   vec3 xtan, ytan;
  
-  // xtan = ortho(normal);
-  xtan = random3(pos + time);
+  xtan = ortho(normal);
+  // xtan = normalize(random3(pos + time));
   ytan = cross(normal, xtan);
   xtan = cross(normal, ytan);
   // ytan = cross(xtan, normal);
@@ -292,32 +306,40 @@ void main(){
 	float gammaEditor = 2.2;
 	float gammaTextures = 2.2;
 
+	vec3 pos = b_pos;
+	vec3 normal = b_normal;
+
 	vec3 albedo = pow(u_diffuse, vec3(gammaEditor));
 	vec3 emission = pow(u_emission, vec3(gammaEditor));
+
+	float rougness = u_rough;
+	float metalness = u_metal;
 
 	if (u_useMaps) {
 		albedo *= pow(texture(u_diffuseMap, b_uv).rgb, vec3(gammaTextures));
 		emission *= pow(texture(u_emissionMap, b_uv).rgb, vec3(gammaTextures));
+
+	    mat3 tanSpace = mat3(normalize(b_xtan), normalize(b_ytan), normalize(b_normal));
+	    vec2 tn = texture(u_bumpMap, b_uv).rg * 2 - 1;
+	    normal = vec3(tn, sqrt(1 - dot(tn, tn)));
+
+	    normal = tanSpace * normal;	
 	}
 
 	emission *= u_emissionScale;
 
-	float rougness = u_rough;
-	float metalness = u_metal;
-	vec3 normal = b_normal;
-	vec3 pos = b_pos;
 
 
-	vec3 color = albedo * spotlight() / PI;
+	vec3 color = albedo * spotlight(normal) / PI;
 	// color = max(vec3(0), color);
 
 	// color = u_diffuse;
 	// color = b_normal * 0.5 + 0.5;
 
 	if (u_temporalMultibounce) {
-		vec3 indirect = myDiffuse();
+		vec3 indirect = myDiffuse(normal);
 		indirect *= albedo;
-		color += indirect * u_restitution;
+		color += indirect * u_restitution * 0.8;
 	}
 	color += emission;
 
@@ -328,6 +350,13 @@ void main(){
 	if (u_averageValues) {
 		imageAtomicAvg(u_voxelTexture, ivec3(dim*posVoxelSpace), val);
 	} else {
+		#if 1
+		val.a *= 1.f / 255.f;
+		vec4 prev = imageLoad(u_voxelTexture, ivec3(dim*posVoxelSpace));
+		vec3 avg = (prev.rgb * prev.a + val.rgb * val.a) / (prev.a + val.a);
+		val = vec4(avg, prev.a + val.a);
+		#endif
+		// val = vec4(prev.rgb * prev.a + val.rgb * val.a, 1.0) / (prev.a + val.a);
 		imageStore(u_voxelTexture, ivec3(dim*posVoxelSpace), val);
 	}
 }

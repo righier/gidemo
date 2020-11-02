@@ -19,9 +19,22 @@ struct Asset {
 
 	}
 
+	bool checkTime() {
+		return System::time() - loadTime > 0.5;
+	}
+
+	void updateLoadTime() {
+		loadTime = System::time();
+	}
+
 	void load() {
+		loadTime = System::time();
+		loadImpl();
+	}
+
+	void checkAndLoad() {
 		double currTime = System::time();
-		if (currTime - loadTime > 1.0) {
+		if (currTime - loadTime > 0.5) {
 			loadImpl();
 			loadTime = currTime;
 		}
@@ -166,10 +179,12 @@ struct Shader: Asset {
 	int id = 0;
 	string vpath, gpath, fpath;
 
+	string header = "";
+
 	Shader() {}
-	Shader(const string &cpath);
-	Shader(const string &vpath, const string &fpath);
-	Shader(const string &vpath, const string &gpath, const string &fpath);
+	Shader(const string &cpath, const string &header);
+	Shader(const string &vpath, const string &fpath, const string &header);
+	Shader(const string &vpath, const string &gpath, const string &fpath, const string &header);
 
 	void loadImpl();
 

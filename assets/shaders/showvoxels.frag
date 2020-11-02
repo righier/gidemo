@@ -1,4 +1,3 @@
-#version 460 core
 
 in vec3 a_pos;
 
@@ -72,5 +71,6 @@ void main() {
   }
 
   color = color / (color + vec4(1.0f)); // tone mapping (Reinhard)
-  o_albedo = pow(color.rgb, vec3(1.0/2.2));
+  color = pow(color, vec4(1.0/2.2));
+  o_albedo = color.rgb;
 }

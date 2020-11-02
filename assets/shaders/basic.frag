@@ -1,4 +1,3 @@
-#version 460 core
 
 in vec3 a_pos;
 in vec2 a_uv;

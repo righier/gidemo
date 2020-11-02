@@ -28,10 +28,10 @@ bool checkAndLogProgramError(u32 id) {
 	} else return true;
 }
 
-u32 loadShader(const string &path, GLenum type) {
+u32 loadShader(const string &path, GLenum type, const string &header) {
 	if (path.size() == 0) return 0;
 
-	string source;
+	string source = "#version 460 core\n" + header;
 	LOG("LOAD: ", path);
 	if (!readFile("../assets/shaders/" + path, source)) {
 		LOG("Cannot find shader source file:", path);
@@ -56,10 +56,10 @@ u32 loadShader(const string &path, GLenum type) {
 	return shader;
 }
 
-u32 loadComputeShader(const string &cpath) {
+u32 loadComputeShader(const string &cpath, const string &header) {
 	LOG("load compute shader:", cpath);
 
-	u32 comp = loadShader(cpath, GL_COMPUTE_SHADER);
+	u32 comp = loadShader(cpath, GL_COMPUTE_SHADER, header);
 	if (comp == 0) return 0;
 
 	u32 id = glCreateProgram();
@@ -80,13 +80,13 @@ u32 loadComputeShader(const string &cpath) {
 	return id;
 }
 
-u32 loadProgram(const string &vpath, const string &gpath, const string &fpath) {
+u32 loadProgram(const string &vpath, const string &gpath, const string &fpath, const string &header) {
 	LOG("load shader:", vpath, fpath);
-	if (fpath=="") return loadComputeShader(vpath);
+	if (fpath=="") return loadComputeShader(vpath, header);
 
-	u32 vert = loadShader(vpath, GL_VERTEX_SHADER);
-	u32 geom = loadShader(gpath, GL_GEOMETRY_SHADER);
-	u32 frag = loadShader(fpath, GL_FRAGMENT_SHADER);
+	u32 vert = loadShader(vpath, GL_VERTEX_SHADER, header);
+	u32 geom = loadShader(gpath, GL_GEOMETRY_SHADER, header);
+	u32 frag = loadShader(fpath, GL_FRAGMENT_SHADER, header);
 
 	u32 id = 0;
 
@@ -136,18 +136,18 @@ const char *Shader::getUniformName(const char *name, int index) {
 }
 
 
-Shader::Shader(const string &vpath, const string &fpath): 
-Shader(vpath, "", fpath) {
+Shader::Shader(const string &vpath, const string &fpath, const string &header): 
+Shader(vpath, "", fpath, header) {
 
 }
 
-Shader::Shader(const string &cpath):
-Shader(cpath, "", "") {
+Shader::Shader(const string &cpath, const string &header):
+Shader(cpath, "", "", header) {
 
 }
 
-Shader::Shader(const string &vpath, const string &gpath, const string &fpath): 
-id(0), vpath(vpath), gpath(gpath), fpath(fpath) {
+Shader::Shader(const string &vpath, const string &gpath, const string &fpath, const string &header): 
+id(0), vpath(vpath), gpath(gpath), fpath(fpath), header(header) {
 	files.push_back(vpath);
 	files.push_back(gpath);
 	files.push_back(fpath);
@@ -158,7 +158,7 @@ id(0), vpath(vpath), gpath(gpath), fpath(fpath) {
 }
 
 void Shader::loadImpl() {
-	u32 newId = loadProgram(vpath, gpath, fpath);
+	u32 newId = loadProgram(vpath, gpath, fpath, header);
 	if (newId) {
 		dispose();
 		id = newId;

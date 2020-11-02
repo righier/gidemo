@@ -1,14 +1,17 @@
-#version 460 core
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
 
 in vec3 a_pos[];
 in vec3 a_normal[];
+in vec3 a_xtan[];
+in vec3 a_ytan[];
 in vec2 a_uv[];
 
 out vec3 b_pos;
 out vec3 b_normal;
+out vec3 b_xtan;
+out vec3 b_ytan;
 out vec2 b_uv;
 
 void main(){
@@ -26,6 +29,8 @@ void main(){
 		}
 		b_pos = a_pos[i];
 		b_normal = a_normal[i];
+		b_xtan = a_xtan[i];
+		b_ytan = a_ytan[i];
 		b_uv = a_uv[i];
 
 		EmitVertex();

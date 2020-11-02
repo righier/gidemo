@@ -4,7 +4,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4996)
 #define FAST_OBJ_IMPLEMENTATION
-#include <fast_obj.h>
+#include "fast_obj.h"
 #pragma warning(pop)
 
 #include <unordered_map>
