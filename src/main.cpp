@@ -494,9 +494,9 @@ int main() {
 	int updateCount = 0;
 
 
-	templeScene();
+	// templeScene();
 	// horseScene(false);
-	// particleScene();
+	particleScene();
 	loadAssets();
 
 	initVoxelize();
@@ -660,6 +660,8 @@ int main() {
 		updateCount++;
 
 		if (showCursor) {
+
+			ImGui::ShowDemoWindow();
 			ImGui::Begin("Scene editor");
 
 			if (ImGui::CollapsingHeader("Objects")) {
@@ -680,14 +682,44 @@ int main() {
 
 			if (ImGui::CollapsingHeader("Particle Systems")) {
 
-				auto uiShow = [](const string &name, Prop<float> &p) {
+				auto uiPropFloat = [](const string &name, Prop<float> &p) {
+
+				};
+
+				auto uiPropVec3 = [](const string &name, Prop<vec3> &p) {
+
+				};
+
+				auto uiPropColor = [](const string &name, Prop<vec3> &p) {
+
+				};
+
+				auto uiAnimFloat = [](const string &name, AnimProp<float> &p) {
+
+				};
+
+				auto uiAnimVec3 = [](const string &name, AnimProp<vec3> &p) {
+
+				};
+
+				auto uiAnimColor = [](const string &name, AnimProp<vec3> &p) {
 
 				};
 
 				for (u32 i = 0; i < scene.particles.size(); i++) {
 					auto &ps = scene.particles[i];
 					if (ImGui::TreeNode(std::to_string(i).c_str())) {
-						uiShow("Particle life", ps.life);
+						ImGui::DragInt("Particle Count", (int *)&(ps.count));
+						uiPropFloat("Particle Life Time", ps.life);
+						uiPropVec3("Particle Position", ps.pos);
+						uiPropVec3("Particle Velocity", ps.vel);
+						uiPropVec3("Particle Acceleration", ps.acc);
+						uiAnimVec3("Particle Scale", ps.scale);
+						uiAnimColor("Particle Color", ps.color);
+						uiAnimFloat("Particle Opacity", ps.opacity);
+						uiPropFloat("Particle Fadein Time", ps.fadeIn);
+
+						ImGui::TreePop();
 					}
 				}
 			}
