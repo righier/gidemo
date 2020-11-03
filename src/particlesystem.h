@@ -4,6 +4,8 @@
 #include "assets.h"
 #include "random.h"
 
+#include <glad/glad.h>
+
 template <typename T>
 struct Prop {
 	T minVal;
@@ -54,8 +56,22 @@ struct AnimProp {
 struct Particle {
 	vec3 pos;
 	vec3 scale;
+	vec3 rot;
 	vec3 color;
 	float opacity;
+
+	void draw(Shader *shader, Mesh *mesh) {
+		mat4 t = glm::identity<mat4>();
+		t = glm::translate(t, pos);
+		t = glm::scale(t, scale);
+		t = t * glm::eulerAngleYXZ(rot.y, rot.x, rot.z);
+
+		shader->set("u_transform", t);
+		shader->set("u_emission", color);
+		shader->set("u_opacity", opacity);
+
+		mesh->drawNoBind();
+	}
 };
 
 struct ParticleSystem {
@@ -64,13 +80,15 @@ struct ParticleSystem {
 	Prop<vec3> vel = Prop<vec3>(vec3(1));
 	Prop<vec3> acc = Prop<vec3>(vec3(0));
 	AnimProp<vec3> scale = AnimProp<vec3>(vec3(1.f));
+	AnimProp<vec3> rot = AnimProp<vec3>(vec3(0));
 	AnimProp<vec3> color = AnimProp<vec3>(vec3(1));
-	AnimProp<float> opacity = AnimProp<float>(1.f, 0.f);
+	AnimProp<float> opacity = AnimProp<float>(1.f, 0.f, 1.0f);
 	Prop<float> fadeIn = Prop<float>(.1f);
 
 	u32 count;
 
 	Texture *texture;
+	Mesh *mesh;
 
 	Particle simulate(Random &r, double time) {
 		float cycle = (life.val(r));
@@ -82,24 +100,36 @@ struct ParticleSystem {
 		vec3 a = acc.val(r);
 		p.pos = p0 + t*(v0 + (.5f*t)*a);
 		p.scale = scale.val(r, k);
+		p.rot = rot.val(r, k);
 		p.color = color.val(r, k);
-		p.opacity = opacity.val(r, k) * glm::min(t/fadeIn.val(r), 1.0f);;
-
+		p.opacity = opacity.val(r, k) * glm::min(t/fadeIn.val(r), 1.0f);
 
 		return p;
 	}
 
-	void draw(const Particle &p) {
+	void draw(Shader *shader, double time, int seed = 0) {
+		Random r(seed);
 
-	}
+		glDepthMask(GL_FALSE); 
+		glDisable(GL_CULL_FACE);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-	void draw(double time) {
-		Random r(23);
+		mesh->bind();
+
+		texture->bind(15);
+		shader->set("u_emissionMap", 15);
 
 		for (size_t i = 0; i < count; i++) {
 			Particle p = simulate(r, time);
-			draw(p);
+			p.draw(shader, mesh);
 		}
+
+		mesh->reset();
+
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
+		glEnable(GL_CULL_FACE);
 	}
 
 };

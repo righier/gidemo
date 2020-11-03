@@ -76,11 +76,22 @@ void Mesh::setup() {
 	LOG("CREATED MESH WITH N FACES:", indices.size() / 3);
 }
 
-void Mesh::draw() {
-
+void Mesh::bind() {
 	glBindVertexArray(vao);
-	glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
+}
+
+void Mesh::reset() {
 	glBindVertexArray(0);
+}
+
+void Mesh::drawNoBind() {
+	glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
+}
+
+void Mesh::draw() {
+	Mesh::bind();
+	Mesh::drawNoBind();
+	Mesh::reset();
 }
 
 void Mesh::dispose() {

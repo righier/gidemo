@@ -303,6 +303,12 @@ struct Mesh: Asset {
 	Mesh &operator=(const Mesh &) = delete;
 
 
+	void bind();
+
+	static void reset();
+
+	void drawNoBind();
+
 	void draw();
 
 	void setup();

@@ -12,6 +12,9 @@ uniform float u_emissionScale;
 uniform float u_metal;
 uniform float u_rough;
 
+uniform bool u_particle;
+uniform float u_opacity;
+
 uniform bool u_useMaps;
 uniform sampler2D u_diffuseMap;
 uniform sampler2D u_bumpMap;
@@ -303,8 +306,24 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
 
 void main(){
 
+	vec3 posVoxelSpace = toVoxel(b_pos) * 0.999f;
+	ivec3 dim = imageSize(u_voxelTexture);
+
 	float gammaEditor = 2.2;
 	float gammaTextures = 2.2;
+
+	if (u_particle) {
+		vec3 pos = b_pos;
+		vec3 emission = pow(u_emission, vec3(gammaEditor));
+		float opacity = texture(u_emissionMap, b_uv).r * u_opacity;
+
+		vec4 color = vec4(emission * opacity, 0.0);
+
+		vec4 prev = imageLoad(u_voxelTexture, ivec3(dim*posVoxelSpace));
+		color += prev;
+		imageStore(u_voxelTexture, ivec3(dim*posVoxelSpace), color);
+		return;
+	}
 
 	vec3 pos = b_pos;
 	vec3 normal = b_normal;
@@ -345,8 +364,6 @@ void main(){
 
 	vec4 val = vec4(color, 1.0f);
 
-	vec3 posVoxelSpace = toVoxel(b_pos) * 0.999f;
-	ivec3 dim = imageSize(u_voxelTexture);
 	if (u_averageValues) {
 		imageAtomicAvg(u_voxelTexture, ivec3(dim*posVoxelSpace), val);
 	} else {

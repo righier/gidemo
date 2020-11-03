@@ -18,18 +18,18 @@ struct Scene {
 		objects.push_back(obj);
 	}
 
-	void draw(double time, Shader *shader, bool useMaterials = true) {
+	void drawObjects(double time, Shader *shader, bool useMaterials = true) {
+		UNUSED(time);
 		light.upload(shader);
-
-		// shader->set("u_nPointLights", (int)plights.size());
-		// shader->set("u_pointLights", (vec3*)&plights[0], plights.size()*3);
 
 		for (auto &obj: objects) {
 			obj.draw(shader, useMaterials);
 		}
+	}
 
+	void drawParticles(double time, Shader *shader) {
 		for (auto &p: particles) {
-			p.draw(time);
+			p.draw(shader, time, (int)&p);
 		}
 	}
 

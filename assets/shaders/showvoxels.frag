@@ -66,7 +66,7 @@ void main() {
     } else {
       cc = texelFetch(u_voxelTexture, ivec3(pos*dim), lod);
     }
-    color += (1.0f - color.a) * vec4(cc.xyz, 1.0f) * cc.a;
+    color += (1.0f - color.a) * cc;//vec4(cc.xyz, 1.0f) * cc.a;
     pos += dir*stepSize;
   }
 

@@ -44,6 +44,8 @@ Texture *voxelTextureAniso[6];
 Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
 Shader *mipmapShader, *fixopacityShader;
 
+Shader *particleShader;
+
 Shader *activeShader;
 
 Mesh *cubeMesh;
@@ -68,8 +70,8 @@ bool hdrVoxels = true;
 bool temporalMultibounce = true;
 bool addDiffuseNoise = true;
 
-float multibounceRestitution = 0.4f;
-float restitution = 0.4f;
+float multibounceRestitution = 0.3f;
+float restitution = 0.3f;
 
 bool enableTracedShadows = false;
 float shadowAperture = 5;
@@ -123,7 +125,7 @@ void renderShadowMap(double time) {
 	glEnable(GL_DEPTH_TEST);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	scene.draw(time, shadowShader, false);
+	scene.drawObjects(time, shadowShader, false);
 
 }
 
@@ -158,6 +160,7 @@ void voxelize(double time) {
 	voxelizeShader->set("u_voxelCount", voxelCount);
 	voxelizeShader->set("u_time", (float)time);
 	voxelizeShader->set("u_restitution", multibounceRestitution);
+	voxelizeShader->set("u_particle", false);
 
 	if (!anisotropicVoxels) {
 		voxelTexture->bind(8);
@@ -169,16 +172,16 @@ void voxelize(double time) {
 		}
 	}
 
+	scene.drawObjects(time, voxelizeShader);
 
-	scene.draw(time, voxelizeShader);
-	//render
+	voxelizeShader->set("u_particle", true);
 
-	// if (averageConflictingValues && !hdrVoxels) {
-		fixopacityShader->bind();
-		fixopacityShader->set("u_voxel", 0);
-		glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, voxelTexture->storageType);
-		fixopacityShader->dispatch(voxelCount, voxelCount, voxelCount);
-	// }
+	scene.drawParticles(time, voxelizeShader);
+
+	fixopacityShader->bind();
+	fixopacityShader->set("u_voxel", 0);
+	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, voxelTexture->storageType);
+	fixopacityShader->dispatch(voxelCount, voxelCount, voxelCount);
 
 	if (anisotropicVoxels) {
 		for (int dir = 0; dir < 6; dir++) {
@@ -244,6 +247,8 @@ void loadAssets() {
 
 	mipmapShader = assets.add("mipmap_shader", new Shader("mipmap.comp", anisoHeader[anisotropicVoxels]));
 	fixopacityShader = assets.add("fixopacity_shader", new Shader("fixopacity.comp", ""));
+
+	particleShader = assets.add("particle_shader", new Shader("particle.vert", "particle.frag", ""));
 
 	cubeMesh = loadMesh("../assets/models/cube.obj");
 
@@ -394,8 +399,34 @@ void benchScene() {
 		));
 }
 
+ParticleSystem fire(vec3 pos, float scale) {
+	static Texture *texture = loadTexture("../assets/textures/fire.jpg");
+	static Mesh *mesh = loadMesh("../assets/models/plane.obj");
+
+	auto p = ParticleSystem();
+	p.count = 50;
+	p.life = Prop<float>(1.f, 2.f);
+	p.pos = Prop<vec3>(pos + vec3(-.1f, 0, -.1f) * scale, pos + vec3(.1f, 0, .1f) * scale);
+	p.vel = Prop<vec3>(vec3(0,1,0) * scale, vec3(0,2,0) * scale);
+	p.acc = Prop<vec3>(vec3(0) * scale, vec3(0,2,0) * scale);
+	p.scale = AnimProp<vec3>(vec3(1.0f) * scale);
+	p.rot = AnimProp<vec3>(
+		Prop<vec3>(vec3(1.57, 0, 0), vec3(1.57, 6.28, 6.28)), 
+		Prop<vec3>(vec3(1.57, 0, 0), vec3(1.57, 6.28, 6.28)));
+	p.color = AnimProp<vec3>(
+		Prop<vec3>(vec3(1.0, 0.8, 0.0), vec3(1.0, 0.8, 0.4)),
+		Prop<vec3>(vec3(1.0, 0.2, 0), vec3(1.0, 0, 0)),
+		0.3);
+	p.opacity = AnimProp<float>(1.0, 0.0, 1.0);
+	p.fadeIn = Prop<float>(0.1f);
+	p.texture = texture;
+	p.mesh = mesh;
+	return p;
+}
+
 void particleScene() {
-	scene.add(ParticleSystem());
+	auto p = fire(vec3(0), 1);
+	scene.add(p);
 }
 
 void pbrScene(bool useTexture = false) {
@@ -422,7 +453,6 @@ void pbrScene(bool useTexture = false) {
 				vec3(scale, scale, scale),
 				quat(vec3(0,0,0))
 				));
-
 		}
 	}
 
@@ -451,8 +481,18 @@ void templeScene() {
 	floor2->mat.rough = 0.3f;
 	floor3->mat.rough = 0.3f;
 
-	auto fire = scene.get("FirePit_Inst_Glow");
-	fire->mat.emissionScale = 1000.f;
+	scene.add(fire(vec3(0.19f, -0.83f , 0.725f), 0.03f));
+	scene.add(fire(vec3(-0.19f, -0.83f , 0.71f), 0.03f));
+	scene.add(fire(vec3(0.74f, -0.83f, 0.195f), 0.03f));
+	scene.add(fire(vec3(-0.73f, -0.83f, 0.195f), 0.03f));
+	scene.add(fire(vec3(0.525f, -0.83f, 0.525f), 0.03f));
+	scene.add(fire(vec3(-0.525f, -0.83f, 0.530f), 0.03f));
+	scene.add(fire(vec3(0.285f, -0.83f, -0.72f), 0.03f));
+	scene.add(fire(vec3(-0.29f, -0.83f, -0.715f), 0.03f));
+
+	// auto fire = scene.get("FirePit_Inst_Glow");
+	// fire->mat.emissionScale = 1000.f;
+
 }
 
 int main() {
@@ -494,9 +534,9 @@ int main() {
 	int updateCount = 0;
 
 
-	// templeScene();
+	templeScene();
 	// horseScene(false);
-	particleScene();
+	// particleScene();
 	loadAssets();
 
 	initVoxelize();
@@ -541,7 +581,7 @@ int main() {
 		}
 
 		if (Input::getKey(KEY_ESCAPE)) {
-			Window::setShouldClose(true);
+			// Window::setShouldClose(true);
 		}
 
 		int lock = Input::getKey(KEY_SPACE);
@@ -587,7 +627,7 @@ int main() {
 		Framebuffer::reset();
 		glViewport(0, 0, (int)winSize.x, (int)winSize.y);
 
-		glEnable(GL_BLEND);
+		// glEnable(GL_BLEND);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
 
@@ -606,7 +646,7 @@ int main() {
 			Framebuffer::reset();
 			shadowShader->set("u_project", cam.final);
 
-			scene.draw(time, shadowShader, true);
+			scene.drawObjects(time, shadowShader, true);
 
 			// glDepthFunc(GL_EQUAL);
 			// glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -651,7 +691,11 @@ int main() {
 
 			activeShader->set("u_time", (float)time);
 
-			scene.draw(time, activeShader);
+			scene.drawObjects(time, activeShader);
+
+			particleShader->bind();
+			particleShader->set("u_project", cam.final);
+			scene.drawParticles(time, particleShader);
 
 		} else {
 			showVoxels();
@@ -661,7 +705,6 @@ int main() {
 
 		if (showCursor) {
 
-			ImGui::ShowDemoWindow();
 			ImGui::Begin("Scene editor");
 
 			if (ImGui::CollapsingHeader("Objects")) {
@@ -683,40 +726,67 @@ int main() {
 			if (ImGui::CollapsingHeader("Particle Systems")) {
 
 				auto uiPropFloat = [](const string &name, Prop<float> &p) {
-
+					ImGui::Text(name.c_str());
+					ImGui::DragFloat(("Min " + name).c_str(), &p.minVal);
+					ImGui::DragFloat(("Max" + name).c_str(), &p.maxVal);
 				};
 
 				auto uiPropVec3 = [](const string &name, Prop<vec3> &p) {
-
+					ImGui::Text(name.c_str());
+					ImGui::DragFloat3(("Min " + name).c_str(), (float *)&p.minVal);
+					ImGui::DragFloat3(("Max" + name).c_str(), (float *)&p.maxVal);
 				};
 
 				auto uiPropColor = [](const string &name, Prop<vec3> &p) {
-
+					ImGui::Text(name.c_str());
+					ImGui::ColorEdit3(("Min " + name).c_str(), (float *)&p.minVal);
+					ImGui::ColorEdit3(("Max" + name).c_str(), (float *)&p.maxVal);
 				};
 
-				auto uiAnimFloat = [](const string &name, AnimProp<float> &p) {
-
+				auto uiAnimFloat = [&](const string &name, AnimProp<float> &p) {
+					ImGui::Text(name.c_str());
+					ImGui::DragFloat(("Exp " + name).c_str(), &p.interpExp);
+					uiPropFloat("Start " + name, p.startVal);
+					uiPropFloat("End " + name, p.endVal);
 				};
 
-				auto uiAnimVec3 = [](const string &name, AnimProp<vec3> &p) {
-
+				auto uiAnimVec3 = [&](const string &name, AnimProp<vec3> &p) {
+					ImGui::Text(name.c_str());
+					ImGui::DragFloat(("Exp " + name).c_str(), &p.interpExp);
+					uiPropVec3("Start " + name, p.startVal);
+					uiPropVec3("End " + name, p.endVal);
 				};
 
-				auto uiAnimColor = [](const string &name, AnimProp<vec3> &p) {
-
+				auto uiAnimColor = [&](const string &name, AnimProp<vec3> &p) {
+					ImGui::Text(name.c_str());
+					ImGui::DragFloat(("Exp " + name).c_str(), &p.interpExp);
+					uiPropColor("Start " + name, p.startVal);
+					uiPropColor("End " + name, p.endVal);
 				};
 
 				for (u32 i = 0; i < scene.particles.size(); i++) {
 					auto &ps = scene.particles[i];
 					if (ImGui::TreeNode(std::to_string(i).c_str())) {
-						ImGui::DragInt("Particle Count", (int *)&(ps.count));
+						int count = ps.count;
+						ImGui::DragInt("Particle Count", &count);
+						ps.count = count > 0 ? count : 0;
+						ImGui::Separator();
 						uiPropFloat("Particle Life Time", ps.life);
+						ImGui::Separator();
 						uiPropVec3("Particle Position", ps.pos);
+						ImGui::Separator();
 						uiPropVec3("Particle Velocity", ps.vel);
+						ImGui::Separator();
 						uiPropVec3("Particle Acceleration", ps.acc);
+						ImGui::Separator();
 						uiAnimVec3("Particle Scale", ps.scale);
+						ImGui::Separator();
+						uiAnimVec3("Particle Rotation", ps.rot);
+						ImGui::Separator();
 						uiAnimColor("Particle Color", ps.color);
+						ImGui::Separator();
 						uiAnimFloat("Particle Opacity", ps.opacity);
+						ImGui::Separator();
 						uiPropFloat("Particle Fadein Time", ps.fadeIn);
 
 						ImGui::TreePop();
