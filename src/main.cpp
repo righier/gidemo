@@ -37,7 +37,6 @@ MessageCallback( GLenum source,
 Scene scene;
 AssetStore assets;
 
-// Texture *voxelTexture;
 Texture *voxelTexture;
 Texture *voxelTextureAniso[6];
 
@@ -87,8 +86,6 @@ bool lockfps = false;
 bool vsyncStatus = false;
 int targetfps = 5;
 
-
-
 void initVoxelize() {
 	if (anisotropicVoxels) {
 		voxelTexture = Texture::init3D(voxelCount, false, hdrVoxels);
@@ -130,11 +127,9 @@ void renderShadowMap(double time) {
 }
 
 void voxelize(double time) {
-
 	if (!dynamicVoxelize) return;
 
 	voxelizeShader->bind();
-
 
 	Framebuffer::reset();
 	glViewport(0, 0, voxelCount, voxelCount);
@@ -142,7 +137,6 @@ void voxelize(double time) {
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	// glEnable(GL_MULTISAMPLE);
  
 	voxelTexture->bind(0);
 	voxelTexture->clear(vec4(0,0,0,0));
@@ -156,7 +150,6 @@ void voxelize(double time) {
 	voxelizeShader->set("u_shadowMap", 1);
 	voxelizeShader->set("u_averageValues", averageConflictingValues && !hdrVoxels);
 	voxelizeShader->set("u_temporalMultibounce", temporalMultibounce);
-	voxelizeShader->set("u_aniso", anisotropicVoxels);
 	voxelizeShader->set("u_voxelCount", voxelCount);
 	voxelizeShader->set("u_time", (float)time);
 	voxelizeShader->set("u_restitution", multibounceRestitution);
@@ -198,14 +191,12 @@ void voxelize(double time) {
 }
 
 void showVoxels() {
-
 	visualizeShader->bind();
 	visualizeShader->set("u_project", cam.final);
 	visualizeShader->set("u_voxelCount", voxelCount);
 	visualizeShader->set("u_cameraPos", cam.pos);
 	visualizeShader->set("u_voxelLod", voxelLod);
 	visualizeShader->set("u_quality", visualizeQuality);
-	visualizeShader->set("u_aniso", anisotropicVoxels);
 	visualizeShader->set("u_voxelIndex", voxelIndex);
 
 	voxelTexture->bind(0);
@@ -222,7 +213,6 @@ void showVoxels() {
 	glCullFace(GL_FRONT);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	cubeMesh->draw();
-
 }
 
 void recompileShaders() {
@@ -253,6 +243,31 @@ void loadAssets() {
 	cubeMesh = loadMesh("../assets/models/cube.obj");
 
 	shadowMap = Framebuffer::shadowMap(2048, 2048);
+}
+
+ParticleSystem fire(vec3 pos, float scale) {
+	static Texture *texture = loadTexture("../assets/textures/fire.jpg");
+	static Mesh *mesh = loadMesh("../assets/models/plane.obj");
+
+	auto p = ParticleSystem();
+	p.count = 50;
+	p.life = Prop<float>(1.f, 2.f);
+	p.pos = Prop<vec3>(pos + vec3(-.1f, 0, -.1f) * scale, pos + vec3(.1f, 0, .1f) * scale);
+	p.vel = Prop<vec3>(vec3(0,1,0) * scale, vec3(0,2,0) * scale);
+	p.acc = Prop<vec3>(vec3(0) * scale, vec3(0,2,0) * scale);
+	p.scale = AnimProp<vec3>(vec3(1.0f) * scale);
+	p.rot = AnimProp<vec3>(
+		Prop<vec3>(vec3(1.57, 0, 0), vec3(1.57, 6.28, 6.28)), 
+		Prop<vec3>(vec3(1.57, 0, 0), vec3(1.57, 6.28, 6.28)));
+	p.color = AnimProp<vec3>(
+		Prop<vec3>(vec3(1.0, 0.8, 0.0), vec3(1.0, 0.8, 0.4)),
+		Prop<vec3>(vec3(1.0, 0.2, 0), vec3(1.0, 0, 0)),
+		0.3f);
+	p.opacity = AnimProp<float>(1.0, 0.0, 1.0);
+	p.fadeIn = Prop<float>(0.1f);
+	p.texture = texture;
+	p.mesh = mesh;
+	return p;
 }
 
 void addCornellBox(bool useTexture = false) {
@@ -318,14 +333,6 @@ void addCornellBox(bool useTexture = false) {
 			quat(vec3(pi*0.5,0,0))
 			));
 	}
-	// scene.add(Object(
-	// 	"frontWall",
-	// 	planeMesh,
-	// 	Material(vec3(1)),
-	// 	vec3(0,0,1),
-	// 	vec3(1,1,1),
-	// 	quat(vec3(-pi*0.5,0,0))
-	// 	));
 
 	scene.add(Object(
 		"red",
@@ -373,6 +380,9 @@ void horseScene(bool useTexture = false) {
 		vec3(1,1,1),
 		quat(vec3(0,glm::radians(45.f),0))
 		));
+
+	scene.add(fire(vec3(0.19f, -0.83f , 0.725f), 0.03f));
+
 }
 
 void benchScene() {
@@ -399,30 +409,7 @@ void benchScene() {
 		));
 }
 
-ParticleSystem fire(vec3 pos, float scale) {
-	static Texture *texture = loadTexture("../assets/textures/fire.jpg");
-	static Mesh *mesh = loadMesh("../assets/models/plane.obj");
 
-	auto p = ParticleSystem();
-	p.count = 50;
-	p.life = Prop<float>(1.f, 2.f);
-	p.pos = Prop<vec3>(pos + vec3(-.1f, 0, -.1f) * scale, pos + vec3(.1f, 0, .1f) * scale);
-	p.vel = Prop<vec3>(vec3(0,1,0) * scale, vec3(0,2,0) * scale);
-	p.acc = Prop<vec3>(vec3(0) * scale, vec3(0,2,0) * scale);
-	p.scale = AnimProp<vec3>(vec3(1.0f) * scale);
-	p.rot = AnimProp<vec3>(
-		Prop<vec3>(vec3(1.57, 0, 0), vec3(1.57, 6.28, 6.28)), 
-		Prop<vec3>(vec3(1.57, 0, 0), vec3(1.57, 6.28, 6.28)));
-	p.color = AnimProp<vec3>(
-		Prop<vec3>(vec3(1.0, 0.8, 0.0), vec3(1.0, 0.8, 0.4)),
-		Prop<vec3>(vec3(1.0, 0.2, 0), vec3(1.0, 0, 0)),
-		0.3);
-	p.opacity = AnimProp<float>(1.0, 0.0, 1.0);
-	p.fadeIn = Prop<float>(0.1f);
-	p.texture = texture;
-	p.mesh = mesh;
-	return p;
-}
 
 void particleScene() {
 	auto p = fire(vec3(0), 1);
@@ -461,13 +448,15 @@ void pbrScene(bool useTexture = false) {
 
 void templeScene() {
 	scene.light = SpotLight(
-		vec3(0, 0.2, -0.5),
-		vec3(0, -1, 1),
+		vec3(0, 0.2, 0.5),
+		vec3(0, -1, -1),
 		vec3(10),
 		70.f, 20.f
 		);	
 
 	shadowBias = 0.00006f;
+
+	cam.pos = vec3(0.f, -.8f, 1.f);
 
 	loadScene(scene, "../assets/suntemple/suntemple.obj");
 
@@ -489,17 +478,12 @@ void templeScene() {
 	scene.add(fire(vec3(-0.525f, -0.83f, 0.530f), 0.03f));
 	scene.add(fire(vec3(0.285f, -0.83f, -0.72f), 0.03f));
 	scene.add(fire(vec3(-0.29f, -0.83f, -0.715f), 0.03f));
-
-	// auto fire = scene.get("FirePit_Inst_Glow");
-	// fire->mat.emissionScale = 1000.f;
-
 }
 
 int main() {
 	System::init(4, 6);
 
-
-	Window::create(1280, 720, "title", Window::WINDOWED, vsyncStatus);
+	Window::create(1280, 720, "Voxel Cone Tracing Demo", Window::WINDOWED, vsyncStatus);
 
 	Window::update();
 
@@ -533,10 +517,11 @@ int main() {
 	double oldTime = System::time();
 	int updateCount = 0;
 
+	cam = Camera(glm::radians(60.f), (float)Window::getWidth() / (float)Window::getHeight(), .1f, 100.f);
+	cam.pos = vec3(0.f, 0.f, 3.f);
 
 	templeScene();
-	// horseScene(false);
-	// particleScene();
+	// horseScene(true);
 	loadAssets();
 
 	initVoxelize();
@@ -544,9 +529,6 @@ int main() {
 	activeShader = voxelConeShader;
 
 
-	cam = Camera(glm::radians(60.f), (float)Window::getWidth() / (float)Window::getHeight(), .1f, 100.f);
-
-	cam.pos = vec3(0.f, 0.f, 3.f);
 
 	bool showCursor = true;
 	int lockPrev = false;
@@ -587,7 +569,6 @@ int main() {
 		int lock = Input::getKey(KEY_SPACE);
 		if (lock & !lockPrev) {
 			showCursor = !showCursor;
-			//LOG("TOGGLE CURSOR:", showCursor);
 			Input::showCursor(showCursor);
 		}
 		lockPrev = lock;
@@ -648,18 +629,9 @@ int main() {
 
 			scene.drawObjects(time, shadowShader, true);
 
-			// glDepthFunc(GL_EQUAL);
-			// glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		}
 
-		// glDisable(GL_BLEND);
-		// glEnable(GL_CULL_FACE);
-		// glCullFace(GL_BACK);
-
-
 		if (!toggleVoxels) {
-
-
 			activeShader->bind();
 			Framebuffer::reset();
 			activeShader->set("u_project", cam.final);
@@ -676,7 +648,6 @@ int main() {
 
 			voxelTexture->bind(1);
 			activeShader->set("u_voxelTexture", 1);
-			activeShader->set("u_aniso", anisotropicVoxels);
 			for (int i = 0; i < 6; i++) {
 				if (anisotropicVoxels) {
 					voxelTextureAniso[i]->bind(i+2);

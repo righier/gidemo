@@ -39,7 +39,11 @@ uniform int u_renderMode;
 uniform int u_voxelCount;
 float voxelSize = 1.0f / float(u_voxelCount);
 
-uniform bool u_aniso;
+#ifdef ANISO
+bool u_aniso = true;
+#else
+bool u_aniso = false;
+#endif
 
 uniform sampler3D u_voxelTexture;
 uniform sampler3D u_voxelTextureAniso[6];
@@ -70,75 +74,42 @@ vec3 toVoxel(vec3 pos) {
 
 float roughnessToAperture(float roughness){
   roughness = clamp(roughness, 0.0, 1.0);
-  // roughness = 0.1;
-  // roughness = roughness * roughness * roughness;
   return tan(0.0003474660443456835 + (roughness * (1.3331290497744692 - (roughness * 0.5040552688878546)))); // <= used in the 64k
-  // return tan(acos(pow(0.244, 1.0 / (clamp(2.0 / max(1e-4, (roughness * roughness)) - 2.0, 4.0, 1024.0 * 16.0) + 1.0))));
-  // return clamp(tan((3.141592 * (0.5 * 0.75)) * roughness), 0.00174533102, 3.14159265359);
 }
 
 vec4 fetch(vec3 dir, vec3 pos, float lod) {
   lod = max(0, lod);
   // pos = clamp(pos, vec3(0), vec3(1));
-  if (u_aniso) {
+#ifdef ANISO
     bvec3 sig = greaterThan(dir, vec3(0.0f));
     float l2 = max(0, lod - 1);
-    // vec4 cx = sig.x ? textureLod(u_voxelTextureAniso[1], pos, l2) : textureLod(u_voxelTextureAniso[0], pos, l2);
-    // vec4 cy = sig.y ? textureLod(u_voxelTextureAniso[3], pos, l2) : textureLod(u_voxelTextureAniso[2], pos, l2);
-    // vec4 cz = sig.z ? textureLod(u_voxelTextureAniso[5], pos, l2) : textureLod(u_voxelTextureAniso[4], pos, l2);
-#if 0
-    return textureLod(u_voxelTexture, pos, l2);
-#endif
-
-#if 1
     vec4 cx = sig.x ? textureLod(u_voxelTextureAniso[1], pos, l2) : textureLod(u_voxelTextureAniso[0], pos, l2);
     vec4 cy = sig.y ? textureLod(u_voxelTextureAniso[3], pos, l2) : textureLod(u_voxelTextureAniso[2], pos, l2);
     vec4 cz = sig.z ? textureLod(u_voxelTextureAniso[5], pos, l2) : textureLod(u_voxelTextureAniso[4], pos, l2);
-#else
-    vec4 cx = textureLod(u_voxelTextureAniso[int(sig.x)], pos, l2);
-    vec4 cy = textureLod(u_voxelTextureAniso[2+int(sig.y)], pos, l2);
-    vec4 cz = textureLod(u_voxelTextureAniso[4+int(sig.z)], pos, l2);
-#endif
 
     vec3 sd = dir * dir; 
     vec4 c1 = sd.x * cx + sd.y * cy + sd.z * cz;
 
-#if 0
-    return c1;
-#else
     if (lod < 1) {
       vec4 c2 = textureLod(u_voxelTexture, pos, 0);
       return mix(c2, c1, lod);
     } else {
       return c1;
     }
-#endif
 
-  } else {
+#else
     return textureLod(u_voxelTexture, pos, lod);
-  }
+#endif
 }
-
-// float shadow() {
-//   float bias = u_shadowBias;
-//   vec3 coords = a_posls.xyz / a_posls.w;
-//   coords = coords*0.5 + 0.5;
-//   float shadowDepth = texture(u_shadowMap, coords.xy).r;
-//   float pointDepth = coords.z;
-//   float shadowVal = pointDepth >= shadowDepth + bias ? 1.0 : 0.0;
-//   return shadowVal;
-// }
 
 float shadow() {
   vec4 coords = a_posls;
-  //u_lightProj * vec4(b_pos, 1.0);
   float bias = u_shadowBias;
   coords = coords*0.5;
   coords += coords.w;
   float total = 0;
   const int nsamples = 4;
   float scale = 2 / 2048.0;
-  // scale = 03
   for (int i = 0; i < nsamples; i++) {
     for (int j = 0; j < nsamples; j++) {
       vec2 offset = vec2(i, j) / nsamples * 2 - 1;
@@ -158,25 +129,11 @@ float shadow() {
   return total;
 }
 
-vec3 getDirectionWeights(vec3 direction){
-  return direction * direction;
-}
-
-
-//
 float NormalDistributionTrowbridgeReitz(float NdotH, float roughness) {
   float a2 = roughness*roughness;
   float NdotH2 = NdotH*NdotH;
   float d = NdotH2 * (a2 - 1) + 1;
   return a2 / (PI * d*d);
-}
-
-float NormalDistributionGGX(float NdotH, float roughness) {
-  float a = roughness*roughness;
-  float NdotH2 = NdotH*NdotH;
-  float TanNdotH2 = (1.0 - NdotH2) / NdotH2;
-  float d = roughness / (NdotH2 * (a + TanNdotH2));
-  return (1.0 / PI) * d*d;
 }
 
 // Geometrix Shadowing (Smith's method, Schlick Approximation)
@@ -188,24 +145,13 @@ float GeometrySchlickFixed(float NdotL, float NdotV, float roughness) {
   return (NdotL * NdotV) / (gs.x * gs.y);
 }
 
-float GeometrySchlick(float NdotL, float NdotV, float roughness) {
-  float k = (roughness*roughness) / 2;
-  vec2 gs = k + (1 - k) * vec2(NdotL, NdotV);
-  return (NdotL * NdotV) / (gs.x * gs.y);
-}
-
 vec3 FresnelSchlick(float cosTheta, vec3 F0) {
   return F0 + (1 - F0) * pow(1 - cosTheta, 5);
-}
-
-vec3 FresnelGaussian(float cosTheta, vec3 F0) {
-  return F0 + (1.0f - F0) * exp2(cosTheta * (-5.55473*cosTheta - 6.98316));
 }
 
 vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 } 
-
 
 
 float random(vec3 v) {
@@ -222,36 +168,31 @@ vec3 random3(vec3 p3){
   return fract((p3.xyz + p3.yzx) * p3.zyx);
 }
 
-// vec4 traceVoxelCone( vec3 from, vec3 direction, float aperture, float offset, float maxDistance){
-vec3 myTracing(vec3 from, vec3 dir, float apertureTan2, float offset, float quality) {
+vec3 ConeTracing(vec3 from, vec3 dir, float apertureTan2, float offset, float quality) {
   float dist = (voxelSize) * offset;
-
-  // float a2 = max(voxelSize, 2 * tan(apertureAngle / 2));
   float a2 = max((voxelSize), apertureTan2);
-
   vec4 color = vec4(0);
+
   while (color.a < 1.0) {
     float diameter = max((voxelSize), dist * a2);
     float lod = log2(diameter / (voxelSize));//* u_voxelCount);
     vec3 pos = from + dir * dist;
     if (!insideVoxel(pos)) break;
     vec4 cc = fetch(dir, pos, min(lod, 10));
-    // color = vec4(color.rgb, 1) * color.a + (1 - color.a) * cc;
-    if (!u_aniso) cc = cc * pow(1.7, lod);
+#ifndef ANISO
+    cc = cc * pow(1.7, lod);
+#endif
     color += (1 - color.a) * cc;
-
     dist += diameter * quality;
   }
-  // return vec3(1);
 
   return color.rgb;
 }
 
-vec3 myDiffuse(vec3 normal) {
+vec3 TraceDiffuse(vec3 normal) {
   vec3 color = vec3(0);
 
-  vec3 pos = toVoxel(a_pos);
-  pos += 2 * (voxelSize) * normal;
+  vec3 pos = toVoxel(a_pos) + 2 * voxelSize * normal;
 
   #define CONES 5
 
@@ -267,9 +208,6 @@ vec3 myDiffuse(vec3 normal) {
     vec3(-1,-1,.5)
     );
 
-  const float w[9] = float[9]( 1, 0.5, 0.5, 0.5, 0.5, 0.3, 0.3, 0.3, 0.3);
-
-
   float apertureAngle = 30;
   float apertureTan2 = 2 * tan(radians(apertureAngle)/2);
 
@@ -277,15 +215,10 @@ vec3 myDiffuse(vec3 normal) {
   if (u_diffuseNoise) {
     xtan = normalize(random3(pos+time) * 2 + 1);
     xtan = normalize(random3(pos+time));
-    if (abs(dot(xtan, normal)) > 0.999) {
-      xtan = ortho(normal);
-    }
-
-    // xtan = random3(pos+time);
+    if (abs(dot(xtan, normal)) > 0.999) xtan = ortho(normal);
     ytan = cross(normal, xtan);
     xtan = cross(normal, ytan);
   } else {
-    // xtan = normalize(a_xtan);
     xtan = ortho(normal);
     ytan = cross(normal, xtan);
     ytan = cross(xtan, normal);
@@ -294,37 +227,22 @@ vec3 myDiffuse(vec3 normal) {
 
   for (int i = 0; i < CONES; i++) {
     vec3 dir = tanSpace * cones[i];
-    // color += w[i] * myTracing(pos, normalize(dir), apertureTan2, 8, 0.3);
-    color += myTracing(pos, normalize(dir), apertureTan2, 2, 0.7);
+    color += ConeTracing(pos, normalize(dir), apertureTan2, 2, 0.7);
   }
 
   return color;
 }
 
-vec3 mySpecular(vec3 normal, float roughness) {
-  vec4 acc = vec4(0);
-
-  vec3 pos = toVoxel(a_pos);
+vec3 TraceSpecular(vec3 normal, float roughness) {
+  vec3 pos = toVoxel(a_pos) + normal * voxelSize * 4;
   vec3 camPos = toVoxel(u_cameraPos);
-
   vec3 camDir = normalize(pos - camPos);
   vec3 dir = reflect(camDir, normal);
-
-
   float aperture = roughnessToAperture(roughness) * 2;
-
-  float NdotV = abs(dot(normal, camDir));
-
-  // float offset = pow(2 - NdotV, 4) * 2;
-  // offset = roughness * 8;
-  // offset = 0;
-  pos += normal * voxelSize * 4;
-
-  return myTracing(pos, dir, aperture, 0, 0.6);
-
+  return ConeTracing(pos, dir, aperture, 0, 0.6);
 }
 
-float myShadow(vec3 normal) {
+float TraceShadow(vec3 normal) {
   vec3 from = toVoxel(a_pos);
   vec3 to = toVoxel(u_lightPos); 
 
@@ -342,14 +260,18 @@ float myShadow(vec3 normal) {
   float acc = 0;
   while (acc < 1.0) {
     float diameter = max((voxelSize)/2, dist * a2);
-    if (dist + (float(u_aniso) * diameter) > maxDist) break;
+#ifdef ANISO
+    if (dist + diameter > maxDist) break;
+#else
+    if (dist > maxDist) break;
+#endif
     float lod = max(0, log2(diameter / (voxelSize) + 1.0));
     vec3 pos = from + dir * dist;
     float cc = fetch(dir, pos, lod).a;
-    if (u_aniso) cc = cc*cc;
+#ifdef ANISO
+    cc = cc*cc;
+#endif
     acc += (1 - acc) * cc;
-    // acc += cc;
-
     dist += diameter * 0.2;
   }
 
@@ -367,52 +289,12 @@ vec3 spotlight(vec3 normal) {
   intensity *= max(0, dot(normal, lightDir));
   if (intensity > 0) {
     if (u_tracedShadows) {
-      intensity *= myShadow(normal);
+      intensity *= TraceShadow(normal);
     } else {
       intensity *= 1.0 - shadow();
     }
   }
   return u_lightColor * intensity;
-}
-
-float DistributionGGX(vec3 N, vec3 H, float roughness)
-{
-    float a = roughness*roughness;
-    float a2 = a*a;
-    float NdotH = max(dot(N, H), 0.0);
-    float NdotH2 = NdotH*NdotH;
-
-    float nom   = a2;
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
-
-    return nom / denom;
-}
-// ----------------------------------------------------------------------------
-float GeometrySchlickGGX(float NdotV, float roughness)
-{
-    float r = (roughness + 1.0);
-    float k = (r*r) / 8.0;
-
-    float nom   = NdotV;
-    float denom = NdotV * (1.0 - k) + k;
-
-    return nom / denom;
-}
-// ----------------------------------------------------------------------------
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
-{
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
-    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
-    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
-
-    return ggx1 * ggx2;
-}
-// ----------------------------------------------------------------------------
-vec3 fresnelSchlick(float cosTheta, vec3 F0)
-{
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
 void main() {
@@ -435,26 +317,16 @@ void main() {
     roughness *= specMap.g;
     metalness *= specMap.b;
 
-
     mat3 tanSpace = mat3(normalize(a_xtan), normalize(a_ytan), normalize(a_normal));
     vec2 tn = texture(u_bumpMap, a_uv).rg * 2 - 1;
     normal = vec3(tn, sqrt(1 - dot(tn, tn)));
 
     normal = tanSpace * normal;
   }
-
   normal = normalize(normal);
-
-  // o_color = normal / 2 + 0.5;
-
-  // return;
-
   emission *= u_emissionScale;
-
   roughness = roughness * roughness;
 
-  o_color = vec3(roughness);
-  // return;
 
   vec3 color = vec3(0);
 
@@ -472,7 +344,6 @@ void main() {
 
   float NdotH = max(dot(N, H), 0.0);
   float NdotV = abs(dot(N, V));
-  // float NdotV = max(dot(N, V), 0.0);
   float HdotV = max(dot(H, V), 0.0);
   float NdotL = max(dot(N, L), 0.0);
 
@@ -480,26 +351,15 @@ void main() {
   float G   = GeometrySchlickFixed(NdotL, NdotV, roughness);      
   vec3 F    = FresnelSchlick(HdotV, F0);
 
-
-  // NDF = DistributionGGX(N, H, roughness);   
-  // G   = GeometrySmith(N, V, L, roughness);      
-  // F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
   vec3 nominator = NDF * G * F;
   float denominator = 4 * NdotV * NdotL + 0.001;
-
   vec3 spec = nominator / denominator;
-
-  // spec = nominator;
 
   vec3 kS = F;
   vec3 kD = 1.0 - kS;
   kD *= 1.0 - metalness;
 
-
-  // spec = vec3(0);
   vec3 directLight = spot * (kD * albedo / PI + spec);
-  // directLight = spec;
 
 
   // indirect lighting
@@ -510,17 +370,19 @@ void main() {
 
   vec3 indirectDiffuse = vec3(0.0);
   if (u_renderMode == 1 || u_renderMode == 3) {
-    if (metalness < 1 || u_renderMode == 1) indirectDiffuse = myDiffuse(N);
+    if (metalness < 1 || u_renderMode == 1) indirectDiffuse = TraceDiffuse(N);
     indirectDiffuse *= u_restitution;
     color = indirectDiffuse;
   }
 
   vec3 indirectSpecular = vec3(0.0);
   if (u_renderMode == 2 || u_renderMode == 3) {
-    indirectSpecular = mySpecular(N, roughness);
+    indirectSpecular = TraceSpecular(N, roughness);
     color = indirectSpecular;
   }
 
+
+  // compose lighting
   if (u_renderMode == 0 || u_renderMode == 3) {
     vec3 ambientLight = (kD * indirectDiffuse * albedo + F * indirectSpecular); 
 

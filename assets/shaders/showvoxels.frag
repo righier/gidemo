@@ -5,13 +5,15 @@ uniform vec3 u_cameraPos;
 uniform int u_voxelCount;
 uniform float u_voxelLod;
 uniform float u_quality;
-uniform bool u_aniso;
 uniform int u_voxelIndex;
 
 float voxelSize = 1.0f / u_voxelCount;
 
 uniform sampler3D u_voxelTexture;
+
+#ifdef ANISO
 uniform sampler3D u_voxelTextureAniso[6];
+#endif
 
 layout(location = 0) out vec3 o_albedo;
 
@@ -61,11 +63,15 @@ void main() {
   while (insideVoxel(pos) && color.a < 0.99f) {
 
     vec4 cc;
-    if (lod > 0 && u_aniso) {
+#ifdef ANISO
+    if (lod > 0) {
       cc = texelFetch(u_voxelTextureAniso[u_voxelIndex], ivec3(pos*dim), lod-1);
     } else {
       cc = texelFetch(u_voxelTexture, ivec3(pos*dim), lod);
     }
+#else
+    cc = texelFetch(u_voxelTexture, ivec3(pos*dim), lod);
+#endif
     color += (1.0f - color.a) * cc;//vec4(cc.xyz, 1.0f) * cc.a;
     pos += dir*stepSize;
   }

@@ -1,10 +1,12 @@
 #include <queue>
-#include <windows.h>
 
 #include "assets.h"
-#include "window.h"
 #include "utils.h"
+#include "window.h"
 
+
+#ifdef _WIN32
+#include <windows.h>
 
 std::queue<string> fileChanges;
 
@@ -38,8 +40,6 @@ DWORD WINAPI worker(LPVOID lpParam) {
 }
 
 void AssetStore::init() {
-
-	LOG("ASMIODFAMSIODFASIODFJ");
 
 	mutex = CreateMutex(NULL, FALSE, NULL);
 
@@ -76,3 +76,13 @@ void AssetStore::update() {
 
 	ReleaseMutex(mutex);
 }
+
+#else
+void AssetStore::init() {
+
+}
+
+void AssetStore::update() {
+
+}
+#endif

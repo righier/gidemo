@@ -29,7 +29,7 @@ struct Scene {
 
 	void drawParticles(double time, Shader *shader) {
 		for (auto &p: particles) {
-			p.draw(shader, time, (int)&p);
+			p.draw(shader, time, (int)reinterpret_cast<unsigned long long>(&p));
 		}
 	}
 
