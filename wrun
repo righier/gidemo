@@ -1,5 +1,0 @@
-#!/bin/bash
-
-pushd ./bin > /dev/null
-./gidemo.exe
-popd > /dev/null

@@ -1,3 +1,0 @@
-pushd bin
-cmake
-popd

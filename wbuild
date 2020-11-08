@@ -1,7 +1,0 @@
-#!/bin/bash
-
-mkdir -p ./bin
-pushd ./bin > /dev/null
-cmake -DCMAKE_TOOLCHAIN_FILE=../libs/glfw/CMake/x86_64-w64-mingw32.cmake .. && make
-#cmake -G "Unix Makefiles" .. && make
-popd > /dev/null

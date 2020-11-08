@@ -596,7 +596,9 @@ int main() {
 		move = move * moveSpeed * (float)timeDelta;
 		move = glm::rotateY(move, cam.hrot);
 
-		cam.ratio = winSize.x / winSize.y;
+		if (winSize.y > 0) {
+			cam.ratio = winSize.x / winSize.y;
+		}
 		cam.rotate(mouseDelta.x, mouseDelta.y);
 		cam.move(move);
 		cam.update();
