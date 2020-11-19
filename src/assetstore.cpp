@@ -43,7 +43,9 @@ void AssetStore::init() {
 
 	mutex = CreateMutex(NULL, FALSE, NULL);
 
-	changeHandle = CreateFile("C:/users/ermanno/desktop/gidemo/bin/../assets/shaders", 
+	char *path = "../assets/shaders";
+
+	changeHandle = CreateFile(path, 
 		FILE_LIST_DIRECTORY,
 		FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE,
 		NULL, 
