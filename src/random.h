@@ -40,14 +40,15 @@ struct Random {
 		return next(max - min) + min;
 	}
 
-	template <>
-	float next() {
-		auto x = nextInt();
-		return (float)x / (float)(1ULL<<32ULL);
-	}
-
-	template <>
-	vec3 next() {
-		return vec3(next<float>(), next<float>(), next<float>());
-	}
 };
+
+template<>
+inline float Random::next() {
+	auto x = nextInt();
+	return (float)x / (float)(1ULL<<32ULL);
+}
+
+template <>
+inline vec3 Random::next() {
+	return vec3(next<float>(), next<float>(), next<float>());
+}

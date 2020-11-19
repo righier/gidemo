@@ -47,7 +47,7 @@ Shader *particleShader;
 
 Shader *activeShader;
 
-Mesh *cubeMesh;
+Mesh *planeMesh, *cubeMesh;
 
 float shadowBias = 0.0005f;
 Framebuffer *shadowMap;
@@ -241,13 +241,13 @@ void loadAssets() {
 	particleShader = assets.add("particle_shader", new Shader("particle.vert", "particle.frag", ""));
 
 	cubeMesh = loadMesh("../assets/models/cube.obj");
+	planeMesh = loadMesh("../assets/models/plane.obj");
 
 	shadowMap = Framebuffer::shadowMap(2048, 2048);
 }
 
 ParticleSystem fire(vec3 pos, float scale) {
 	static Texture *texture = loadTexture("../assets/textures/fire.jpg");
-	static Mesh *mesh = loadMesh("../assets/models/plane.obj");
 
 	auto p = ParticleSystem();
 	p.count = 50;
@@ -266,12 +266,11 @@ ParticleSystem fire(vec3 pos, float scale) {
 	p.opacity = AnimProp<float>(1.0, 0.0, 1.0);
 	p.fadeIn = Prop<float>(0.1f);
 	p.texture = texture;
-	p.mesh = mesh;
+	p.mesh = planeMesh;
 	return p;
 }
 
 void addCornellBox(bool useTexture = false) {
-	auto *planeMesh = loadMesh("../assets/models/plane.obj");
 
 	scene.light = SpotLight(
 		vec3(0, 1, 0),
@@ -478,6 +477,17 @@ void templeScene() {
 	scene.add(fire(vec3(-0.525f, -0.83f, 0.530f), 0.03f));
 	scene.add(fire(vec3(0.285f, -0.83f, -0.72f), 0.03f));
 	scene.add(fire(vec3(-0.29f, -0.83f, -0.715f), 0.03f));
+
+	Texture *painting = loadTexture("../assets/textures/painting.jpg");
+	Material paintMat = Material(painting, normalTexture(), whiteTexture(), painting, 0.0f);
+	scene.add(Object(
+		"painting",
+		planeMesh,
+		paintMat,
+		vec3(0, -0.8, 0.8),
+		vec3(1,1,1),
+		quat(vec3(pi*0.5,pi,0))
+		));
 }
 
 int main() {
@@ -520,9 +530,9 @@ int main() {
 	cam = Camera(glm::radians(60.f), (float)Window::getWidth() / (float)Window::getHeight(), .1f, 100.f);
 	cam.pos = vec3(0.f, 0.f, 3.f);
 
+	loadAssets();
 	templeScene();
 	// horseScene(true);
-	loadAssets();
 
 	initVoxelize();
 

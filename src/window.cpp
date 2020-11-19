@@ -10,6 +10,10 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace Window {
 
 	GLFWwindow *window = NULL;
@@ -200,14 +204,13 @@ namespace System {
 	}
 
 #ifdef _WIN32
-#include <windows.h>
   void sleep(double t) {
-    Sleep((System::DWORD)(t * 1000));
+    Sleep((DWORD)(t * 1000));
   }
 #else
-#include <unistd.h>
+#include <cunistd>
   void sleep(double t) {
-    usleep(t * 1000000);
+    std::usleep(t * 1000000);
   }
 #endif
 

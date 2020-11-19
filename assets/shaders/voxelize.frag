@@ -156,8 +156,9 @@ uint vecToRgba(vec4 val) {
 	);
 }
 
-void imageAtomicAvg(layout(r32ui) coherent volatile image3D imgUI, ivec3 coords, vec4 val) {
-	val.rgb *= 255.0f;
+void imageAtomicAvg(/*layout(r32ui)*/ coherent volatile image3D imgUI, ivec3 coords, vec4 val) {
+
+	val.xyz = val.xyz * 255.f;
 	uint newVal = vecToRgba(val);
 	uint prevVal = 0;
 	uint curVal;

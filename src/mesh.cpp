@@ -1,11 +1,15 @@
 
 #include <glad/glad.h>
 
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4996)
+#endif
 #define FAST_OBJ_IMPLEMENTATION
 #include "fast_obj.h"
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 
 #include <unordered_map>
 

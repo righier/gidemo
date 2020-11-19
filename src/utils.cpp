@@ -8,8 +8,11 @@
 
 bool readFile(const std::string &path, std::string &s) {
 	std::FILE* f;
-	// f = fopen(path.c_str(), "rb");
+#ifdef _WIN32
 	fopen_s(&f, path.c_str(), "rb");
+#else
+	f = fopen(path.c_str(), "rb");
+#endif
 	if (!f) return false;
 
 	size_t startSize = s.size();

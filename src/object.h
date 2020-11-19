@@ -8,12 +8,12 @@ struct Material {
 	vec3 emission = vec3(1);
 	float metal = 1.0;
 	float rough = 1.0;
-	float emissionScale = 1.0;
 
 	Texture *diffuseMap = nullptr;
 	Texture *bumpMap = nullptr;
 	Texture *specMap = nullptr;
 	Texture *emissionMap = nullptr;
+	float emissionScale = 1.0;
 
 	void bind(Shader *shader) {
 		shader->set("u_diffuse", diffuse);

@@ -19,6 +19,3 @@
 [submodule "libs/stb"]
 	path = libs/stb
 	url = https://github.com/nothings/stb.git
-[submodule "libs/bullet3"]
-	path = libs/bullet3
-	url = https://github.com/bulletphysics/bullet3.git

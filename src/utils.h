@@ -1,12 +1,14 @@
 #pragma once
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <string>
 #include <vector>
 
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4201)
 #pragma warning(disable: 4127)
+#endif
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -14,7 +16,9 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 
 using glm::vec2;
 using glm::vec3;
@@ -28,14 +32,14 @@ const float pi = 3.14159265358979323846f;
 
 #include "log.h"
 
-typedef int8_t i8;
-typedef uint8_t u8;
-typedef int16_t i16;
-typedef uint16_t u16;
-typedef int32_t i32;
-typedef uint32_t u32;
-typedef int64_t i64;
-typedef uint64_t u64;
+typedef std::int8_t i8;
+typedef std::uint8_t u8;
+typedef std::int16_t i16;
+typedef std::uint16_t u16;
+typedef std::int32_t i32;
+typedef std::uint32_t u32;
+typedef std::int64_t i64;
+typedef std::uint64_t u64;
 
 using std::vector;
 using std::string;
