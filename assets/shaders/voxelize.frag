@@ -93,7 +93,6 @@ float shadow() {
 	total /= nsamples*nsamples;
 
 	return clamp(total, 0, 1);
-	return total;
 }
 
 vec3 spotlight(vec3 normal) {
@@ -224,6 +223,18 @@ vec3 TraceDiffuse(vec3 normal) {
   xtan = ortho(normal);
   ytan = cross(normal, xtan);
   xtan = cross(normal, ytan);
+
+  if (true) {
+  	xtan = normalize(random3(pos+time) * 2 + 1);
+  	xtan = normalize(random3(pos+time));
+    if (abs(dot(xtan, normal)) > 0.999) xtan = ortho(normal);
+    ytan = cross(normal, xtan);
+    xtan = cross(normal, ytan);
+  } else {
+    xtan = ortho(normal);
+    ytan = cross(normal, xtan);
+    ytan = cross(xtan, normal);
+  }
 
   mat3 tanSpace = mat3(xtan, ytan, normal); 
 

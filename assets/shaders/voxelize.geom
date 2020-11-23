@@ -22,7 +22,7 @@ void main(){
 		vec4 pos = gl_in[i].gl_Position;
 		if(p.z > p.x && p.z > p.y){
 			gl_Position = vec4(pos.x, pos.y, 0, 1);
-		} else if (p.x > p.y && p.x > p.z){
+		} else if (p.x > p.y){
 			gl_Position = vec4(pos.y, pos.z, 0, 1);
 		} else {
 			gl_Position = vec4(pos.x, pos.z, 0, 1);

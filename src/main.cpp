@@ -380,7 +380,7 @@ void horseScene(bool useTexture = false) {
 		quat(vec3(0,glm::radians(45.f),0))
 		));
 
-	scene.add(fire(vec3(0.19f, -0.83f , 0.725f), 0.03f));
+	// scene.add(fire(vec3(0.19f, -0.83f , 0.725f), 0.03f));
 
 }
 
@@ -532,7 +532,7 @@ int main() {
 
 	loadAssets();
 	templeScene();
-	// horseScene(true);
+	// horseScene(false);
 
 	initVoxelize();
 

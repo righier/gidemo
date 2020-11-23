@@ -131,8 +131,7 @@ float shadow() {
 
 float NormalDistributionTrowbridgeReitz(float NdotH, float roughness) {
   float a2 = roughness*roughness;
-  float NdotH2 = NdotH*NdotH;
-  float d = NdotH2 * (a2 - 1) + 1;
+  float d = NdotH*NdotH * (a2 - 1) + 1;
   return a2 / (PI * d*d);
 }
 
@@ -325,6 +324,7 @@ void main() {
   }
   normal = normalize(normal);
   emission *= u_emissionScale;
+  float roughnessLinear = roughness;
   roughness = roughness * roughness;
 
 
@@ -348,7 +348,7 @@ void main() {
   float NdotL = max(dot(N, L), 0.0);
 
   float NDF = NormalDistributionTrowbridgeReitz(NdotH, roughness);   
-  float G   = GeometrySchlickFixed(NdotL, NdotV, roughness);      
+  float G   = GeometrySchlickFixed(NdotL, NdotV, roughnessLinear);      
   vec3 F    = FresnelSchlick(HdotV, F0);
 
   vec3 nominator = NDF * G * F;
