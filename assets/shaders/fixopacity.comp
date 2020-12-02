@@ -6,6 +6,6 @@ void main() {
 	ivec3 coords = ivec3(gl_GlobalInvocationID);
 
 	vec4 color = imageLoad(u_voxel, ivec3(coords));
-	color.a = float(color.a != 0);
+	color.a = (color.a == 0.0) ? 0.0 : 1.0;
 	imageStore(u_voxel, ivec3(coords), color);
 }

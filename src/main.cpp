@@ -56,7 +56,7 @@ Camera cam;
 
 bool enableIndirectLight = true;
 
-char *renderModeText[] = {"Direct Light", "Indirect Diffuse", "Indirect Specular", "Global Illumination"};
+const char *renderModeText[] = {"Direct Light", "Indirect Diffuse", "Indirect Specular", "Global Illumination"};
 int renderMode = 3;
 int voxelCount = 128;
 
@@ -531,8 +531,8 @@ int main() {
 	cam.pos = vec3(0.f, 0.f, 3.f);
 
 	loadAssets();
-	templeScene();
-	// horseScene(false);
+	// templeScene();
+	horseScene(false);
 
 	initVoxelize();
 
@@ -709,39 +709,39 @@ int main() {
 			if (ImGui::CollapsingHeader("Particle Systems")) {
 
 				auto uiPropFloat = [](const string &name, Prop<float> &p) {
-					ImGui::Text(name.c_str());
+					ImGui::Text("%s",name.c_str());
 					ImGui::DragFloat(("Min " + name).c_str(), &p.minVal);
 					ImGui::DragFloat(("Max" + name).c_str(), &p.maxVal);
 				};
 
 				auto uiPropVec3 = [](const string &name, Prop<vec3> &p) {
-					ImGui::Text(name.c_str());
+					ImGui::Text("%s",name.c_str());
 					ImGui::DragFloat3(("Min " + name).c_str(), (float *)&p.minVal);
 					ImGui::DragFloat3(("Max" + name).c_str(), (float *)&p.maxVal);
 				};
 
 				auto uiPropColor = [](const string &name, Prop<vec3> &p) {
-					ImGui::Text(name.c_str());
+					ImGui::Text("%s",name.c_str());
 					ImGui::ColorEdit3(("Min " + name).c_str(), (float *)&p.minVal);
 					ImGui::ColorEdit3(("Max" + name).c_str(), (float *)&p.maxVal);
 				};
 
 				auto uiAnimFloat = [&](const string &name, AnimProp<float> &p) {
-					ImGui::Text(name.c_str());
+					ImGui::Text("%s",name.c_str());
 					ImGui::DragFloat(("Exp " + name).c_str(), &p.interpExp);
 					uiPropFloat("Start " + name, p.startVal);
 					uiPropFloat("End " + name, p.endVal);
 				};
 
 				auto uiAnimVec3 = [&](const string &name, AnimProp<vec3> &p) {
-					ImGui::Text(name.c_str());
+					ImGui::Text("%s",name.c_str());
 					ImGui::DragFloat(("Exp " + name).c_str(), &p.interpExp);
 					uiPropVec3("Start " + name, p.startVal);
 					uiPropVec3("End " + name, p.endVal);
 				};
 
 				auto uiAnimColor = [&](const string &name, AnimProp<vec3> &p) {
-					ImGui::Text(name.c_str());
+					ImGui::Text("%s",name.c_str());
 					ImGui::DragFloat(("Exp " + name).c_str(), &p.interpExp);
 					uiPropColor("Start " + name, p.startVal);
 					uiPropColor("End " + name, p.endVal);

@@ -14,10 +14,15 @@ out vec3 a_ytan;
 out vec2 a_uv;
 
 void main() {
+	/* calculates the position in world coordinates by applying the 
+	transform matrix */
 	vec4 pos = u_transform * vec4(i_position, 1.0f);
 	a_pos = pos.xyz;
 	gl_Position = pos;
 
+	/* extracts the rotation matrix from the transform matrix, we do this 
+	because the normal needs to just be rotated, not translated. (this also 
+	applies scaling to the normal, but we can normalize the vector later) */
 	mat3 rotate = mat3(transpose(inverse(u_transform)));
 
 	a_normal = rotate * i_normal;

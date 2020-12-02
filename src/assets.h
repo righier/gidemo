@@ -73,7 +73,7 @@ struct AssetStore {
 };
 
 struct Texture: Asset {
-	u32 id;
+	u32 id = 0;
 	u32 type;
 	u32 format;
 	u32 storageType;
@@ -132,6 +132,11 @@ struct Texture: Asset {
 
 	void dispose() {
 		glDeleteTextures(1, &id);
+		id = 0;
+	}
+
+	~Texture() {
+		dispose();
 	}
 };
 

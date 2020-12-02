@@ -208,9 +208,9 @@ namespace System {
     Sleep((DWORD)(t * 1000));
   }
 #else
-#include <cunistd>
+#include <unistd.h>
   void sleep(double t) {
-    std::usleep(t * 1000000);
+    usleep(t * 1000000);
   }
 #endif
 
