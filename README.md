@@ -9,7 +9,12 @@
 - Emissive materials
 - HDR RGBA16f storage
 - Anisotropic voxels
-- Temporal light multi-bounce
+- Light temporal multi-bounce
 - Particle systems
+
+**Commands**
+- **WASD**: Horizontal movement
+- **QE** Vertical movement
+- **SPACE** Toggle GUI / free camera movement
 
 OpenGL 4.6 required
