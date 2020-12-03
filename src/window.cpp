@@ -26,6 +26,7 @@ namespace Window {
 		return window;
 	}
 
+	/* called whenever the window changes size */
 	void callbackResize(GLFWwindow *_window, int width, int height) {
 		UNUSED(_window);
 		w = width;
@@ -46,6 +47,7 @@ namespace Window {
 		if (type == WINDOWED) {
 		// nothing to do
 		} else if (type == BORDERLESS) {
+			/* set the window properties to the currently active monitor ones */
 			monitor = glfwGetPrimaryMonitor();
 			auto mode = glfwGetVideoMode(monitor);
 			glfwWindowHint(GLFW_RED_BITS, mode->redBits);
@@ -68,8 +70,10 @@ namespace Window {
 		glfwMakeContextCurrent(window);
 		glfwSetFramebufferSizeCallback(window, callbackResize);
 
+		/* enable or disable vsync */
 		glfwSwapInterval(vsync);
 
+		/* initialize opengl */
 		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 			std::cout << "Failed to initialize GLAD" << std::endl;
 		}
@@ -83,7 +87,7 @@ namespace Window {
 
 		LOG(glslVersion);
 
-
+		/* inititalize gui */
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -102,14 +106,17 @@ namespace Window {
 	void update() {
 
 		if (!first_run) {
+			/* draw GUI */
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+			/* swap render buffers */
 			glfwSwapBuffers(window);
 		} else {
 			first_run = false;
 		}
 
+		/* update input events */
 		glfwPollEvents();
 
 		ImGui_ImplOpenGL3_NewFrame();
@@ -187,7 +194,7 @@ namespace System {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, gl_major);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, gl_minor);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);	
-		glfwWindowHint(GLFW_SAMPLES, 4);
+		glfwWindowHint(GLFW_SAMPLES, 4); /* number of MSAA samples */
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);  
 	#ifdef __APPLE__
 		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);

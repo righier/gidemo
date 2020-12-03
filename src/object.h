@@ -2,7 +2,7 @@
 
 #include "utils.h"
 #include "assets.h"
-
+/* Material class that handles PBR materials with or without textures */
 struct Material {
 	vec3 diffuse = vec3(1);
 	vec3 emission = vec3(1);
@@ -25,6 +25,7 @@ struct Material {
 
 		shader->set("u_useMaps", diffuseMap != nullptr);
 
+		/* if it has textures, bind them */
 		if (diffuseMap) {
 			diffuseMap->bind(10);
 			bumpMap->bind(11);
@@ -61,6 +62,7 @@ struct Material {
 	{ }
 };
 
+/* Object class, an object has a Transform, Mesh and Material */
 struct Object {
 	string name;
 	Mesh *mesh;
@@ -75,6 +77,7 @@ struct Object {
 
 	}
 
+	/* Generates the matrix needed to transform local coordinates to world coordinates */
 	mat4 genMatrix() {
 		mat4 t = glm::identity<mat4>();
 		t = glm::translate(t, pos);
@@ -83,6 +86,7 @@ struct Object {
 		return t;
 	}
 
+	/*draws the object using the given Shader */
 	void draw(Shader *shader, bool useMaterial = true) {
 		mat4 transform = genMatrix();
 		shader->set("u_transform", transform);

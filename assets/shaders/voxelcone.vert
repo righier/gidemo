@@ -18,10 +18,13 @@ uniform mat4 u_lightProj;
 
 void main() {
 	vec4 pos = u_transform * vec4(i_position, 1.0f);
-	gl_Position = u_project * pos;
-	a_pos = pos.xyz;
-	a_posls = u_lightProj * pos;
+	gl_Position = u_project * pos; /* position from camera view */
+	a_pos = pos.xyz; /* position in world space */
+	a_posls = u_lightProj * pos; /* position in light space */
 
+	/* extracts the rotation matrix from the transform matrix, we do this 
+	because the normal needs to just be rotated, not translated. (this also 
+	applies scaling to the normal, but we can normalize the vector later) */
 	mat3 rotate = mat3(transpose(inverse(u_transform)));
 
 	a_normal = rotate * i_normal;

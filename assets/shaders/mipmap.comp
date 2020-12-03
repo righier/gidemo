@@ -2,11 +2,11 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 uniform int u_dir;
 uniform float u_level;
-// uniform bool u_aniso;
 
 uniform sampler3D u_src;
 layout(RGBA8) uniform image3D u_dest;
 
+/* offsets of all the voxels to interpolate from */
 const ivec3 off[8] = {
 	ivec3(0,0,0),
 	ivec3(1,0,0),
@@ -18,6 +18,8 @@ const ivec3 off[8] = {
 	ivec3(1,1,1)
 };
 
+/* this shader performs the lighting integration both for anisotropic and
+ * isotropic voxels */
 void main() {
 	ivec3 coords = ivec3(gl_WorkGroupID);
 
@@ -30,6 +32,9 @@ void main() {
 		vals[i] = texelFetch(u_src, pos+off[i], int(u_level));
 	};
 
+  /* in the case of anisotropic voxels we want to sum the light contribution
+   * along the viewing direction, taking into account occlusion and average
+   * along the other two orthogonal axes */
 	vec4 color = vec4(0);
 	if (u_dir == 0) {
 		color = 
@@ -68,14 +73,17 @@ void main() {
 			vals[2] + vals[6] * (1. - vals[2].w) + 
 			vals[3] + vals[7] * (1. - vals[3].w);
 	}
-	color *= .25f;
-	color.w = min(1.0f, color.w);
+	color *= .25f; /* average value along orthogonal directions */
+	color.w = min(1.0f, color.w); /*opacity cannot ecceed 1.0 */
 
 	imageStore(u_dest, coords, color);
 #else
 	vec3 size = vec3(gl_NumWorkGroups);
+  /* we sample in between voxels to use hardware linear interpolation */
 	vec3 pos = vec3(coords) / size + vec3(0.5 / size);
-	vec4 color = textureLod(u_src, pos, u_level);
+
+  /* multiply roughly by 2 to preserve opacity and color on higher mip levels */
+	vec4 color = textureLod(u_src, pos, u_level) * 1.9;
 	imageStore(u_dest, coords, color);
 #endif
 }

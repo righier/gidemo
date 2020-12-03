@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include "fast_obj.h"
 
+/* loads all meshes and texture from an OBJ file */
 void loadScene(Scene &scene, const char *path) {
 	LOG("loading scene:", path);
 
@@ -20,6 +21,7 @@ void loadScene(Scene &scene, const char *path) {
 	LOG("loading materials");
 	vector<Material> materials;
 
+	/* load every material */
 	for (size_t i = 0; i < obj->material_count; i++) {
 		fastObjMaterial &mat = obj->materials[i];
 		LOG("material:", mat.name);
@@ -37,6 +39,7 @@ void loadScene(Scene &scene, const char *path) {
 		materials.push_back(m);
 	}
 
+	/* assume that a group uses only one material */
 	for (size_t i = 0; i < obj->group_count; i++) {
 		fastObjGroup &group = obj->groups[i];
 

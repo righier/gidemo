@@ -31,6 +31,7 @@ bool readFile(const std::string &path, std::string &s) {
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #endif
 
+/* good hash function */
 u32 MurmurHash2 ( const void * key, int len, u32 seed ) {
 	const u32 m = 0x5bd1e995;
 	const i32 r = 24;

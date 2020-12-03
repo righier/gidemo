@@ -2,6 +2,7 @@
 
 #include "assets.h"
 
+/* check if there is any compilation error and logs it to console */
 bool checkAndLogShaderError(u32 id) {
 	GLint status, logSize;
 	glGetShaderiv(id, GL_COMPILE_STATUS, &status);
@@ -15,6 +16,7 @@ bool checkAndLogShaderError(u32 id) {
 	} else return true;
 }
 
+/* check if there is any linking error and logs it to console */
 bool checkAndLogProgramError(u32 id) {
 	GLint status, logSize;
 	glGetProgramiv(id, GL_LINK_STATUS, &status);
@@ -28,6 +30,7 @@ bool checkAndLogProgramError(u32 id) {
 	} else return true;
 }
 
+/* load a shader from a file to GPU memory, then compiles */
 u32 loadShader(const string &path, GLenum type, const string &header) {
 	if (path.size() == 0) return 0;
 
@@ -56,6 +59,7 @@ u32 loadShader(const string &path, GLenum type, const string &header) {
 	return shader;
 }
 
+/*load a compute shader from a file then compiles */
 u32 loadComputeShader(const string &cpath, const string &header) {
 	LOG("load compute shader:", cpath);
 
@@ -80,6 +84,9 @@ u32 loadComputeShader(const string &cpath, const string &header) {
 	return id;
 }
 
+
+/* load a shader program, that might or might not cotain a geometry shader */
+/* in the case where only vpath is not empty, it is assumed to be a compute shader */
 u32 loadProgram(const string &vpath, const string &gpath, const string &fpath, const string &header) {
 	LOG("load shader:", vpath, fpath);
 	if (fpath=="") return loadComputeShader(vpath, header);
@@ -118,7 +125,6 @@ u32 loadProgram(const string &vpath, const string &gpath, const string &fpath, c
 
 	} else {
 		return id;
-		// exit(-1);
 	}
 
 	glDeleteShader(vert);

@@ -2,6 +2,8 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(RGBA8) uniform image3D u_voxel;
 
+/* this shader sets the opacity to 1.0 for all voxels that have been written to
+ * during the voxelization stage */
 void main() {
 	ivec3 coords = ivec3(gl_GlobalInvocationID);
 

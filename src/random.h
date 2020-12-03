@@ -2,6 +2,7 @@
 
 #include "utils.h"
 
+/* Random utility class for generating values starting from a given seed */
 struct Random {
 	u32 state[2];
 

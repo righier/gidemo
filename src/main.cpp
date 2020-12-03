@@ -13,6 +13,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 
 
+/* needed to pring OpenGL errors */
 void GLAPIENTRY
 MessageCallback( GLenum source,
                  GLenum type,
@@ -34,22 +35,20 @@ MessageCallback( GLenum source,
             type, severity, message );
 }
 
-Scene scene;
-AssetStore assets;
+Scene scene; /* the scene contains all objects, light sources, and particle systems */
+AssetStore assets; /* asset manager */
 
-Texture *voxelTexture;
-Texture *voxelTextureAniso[6];
+Texture *voxelTexture; /* 3D texture for voxel cone tracing */
+Texture *voxelTextureAniso[6]; /* textures for anisotropic rendering */
 
-Shader *flatShader, *basicShader, *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
+Shader *voxelizeShader, *visualizeShader, *voxelConeShader, *shadowShader;
 Shader *mipmapShader, *fixopacityShader;
 
 Shader *particleShader;
 
-Shader *activeShader;
-
 Mesh *planeMesh, *cubeMesh;
 
-float shadowBias = 0.0005f;
+float shadowBias = 0.0005f; /* bias for shadow maps */
 Framebuffer *shadowMap;
 
 Camera cam;
@@ -61,7 +60,7 @@ int renderMode = 3;
 int voxelCount = 128;
 
 bool dynamicVoxelize = true;
-bool customMipmap = false;
+bool customMipmap = true;
 bool averageConflictingValues = false;
 bool anisotropicVoxels = false;
 string anisoHeader[] = {"", "#define ANISO\n"};
@@ -73,7 +72,7 @@ float multibounceRestitution = 0.3f;
 float restitution = 0.3f;
 
 bool enableTracedShadows = false;
-float shadowAperture = 5;
+float shadowAperture = 2;
 
 bool toggleVoxels = false;
 float voxelLod = 0;
@@ -86,6 +85,7 @@ bool lockfps = false;
 bool vsyncStatus = false;
 int targetfps = 5;
 
+/* initialize 3D textures */
 void initVoxelize() {
 	if (anisotropicVoxels) {
 		voxelTexture = Texture::init3D(voxelCount, false, hdrVoxels);
@@ -97,6 +97,9 @@ void initVoxelize() {
 	}
 }
 
+/* dispose 3D textures */
+/* normally dispose anisotropic textures when they are active, but if flip is true
+ * then it diposes of them when they are inactive */
 void disposeVoxels(bool flip = false) {
 	voxelTexture->dispose();
 	delete voxelTexture;
@@ -109,11 +112,13 @@ void disposeVoxels(bool flip = false) {
 	}
 }
 
+/* render the scene to the shadow map */
 void renderShadowMap(double time) {
 
 	shadowShader->bind();
 	shadowShader->set("u_project", scene.light.getProjectionMatrix());
 
+	/* bind the viewport to the shadowmap framebuffer */
 	shadowMap->bind();
 	shadowMap->setViewport();
 
@@ -122,10 +127,11 @@ void renderShadowMap(double time) {
 	glEnable(GL_DEPTH_TEST);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
+	/* render the scene without using materials */
 	scene.drawObjects(time, shadowShader, false);
-
 }
 
+/* voxelizes the scene to the 3D textures */
 void voxelize(double time) {
 	if (!dynamicVoxelize) return;
 
@@ -134,13 +140,14 @@ void voxelize(double time) {
 	Framebuffer::reset();
 	glViewport(0, 0, voxelCount, voxelCount);
 	glDisable(GL_BLEND);
-	glDisable(GL_CULL_FACE);
+	glDisable(GL_CULL_FACE); /* need to voxelize every face */
 	glDisable(GL_DEPTH_TEST);
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); /* no output to framebuffer */
  
 	voxelTexture->bind(0);
 	voxelTexture->clear(vec4(0,0,0,0));
 	voxelizeShader->set("u_voxelTexture", 0);
+	/* bind the 3D texture for read and write, in order to perform average */
 	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, voxelTexture->storageType);
 
 	voxelizeShader->set("u_lightProj", scene.light.getProjectionMatrix());
@@ -155,42 +162,111 @@ void voxelize(double time) {
 	voxelizeShader->set("u_restitution", multibounceRestitution);
 	voxelizeShader->set("u_particle", false);
 
+	/* for temporal multibounce we need to access the previous 3D textures */
 	if (!anisotropicVoxels) {
+		/* bind the same voxel texture to use as the previous one */
 		voxelTexture->bind(8);
 		voxelizeShader->set("u_voxelTexturePrev", 8);
 	} else {
+		/* bind the anisotropic texture to use as the previous ones */
 		for (int i = 0; i < 6; i++) {
 			voxelTextureAniso[i]->bind(i+2);
 			voxelizeShader->setIndex("u_voxelTexturePrev", i, i+2);
 		}
 	}
 
+	/* voxelize all objects */
 	scene.drawObjects(time, voxelizeShader);
 
-	voxelizeShader->set("u_particle", true);
 
+	/* voxelize all particles */
+	voxelizeShader->set("u_particle", true);
 	scene.drawParticles(time, voxelizeShader);
 
+	/* right now the opacity is used as a counter to perform average, this shader
+	 * turns it back into opacity */
 	fixopacityShader->bind();
 	fixopacityShader->set("u_voxel", 0);
 	glBindImageTexture(0, voxelTexture->id, 0, GL_TRUE, 0, GL_READ_WRITE, voxelTexture->storageType);
 	fixopacityShader->dispatch(voxelCount, voxelCount, voxelCount);
 
+	/* generate mipmaps */
 	if (anisotropicVoxels) {
+		/* generate mipmaps for all directions */
 		for (int dir = 0; dir < 6; dir++) {
+			/* the first mipmap level takes samples from the isotropic texture */
 			genMipmapLevel(mipmapShader, voxelTexture, voxelTextureAniso[dir], 0, voxelCount/2, true, dir);
 			genMipmap(mipmapShader, voxelTextureAniso[dir], voxelCount/4, true, dir);
 		}
 	} else if (customMipmap) {
+		/* use custom mipmapping */
 		genMipmap(mipmapShader, voxelTexture, voxelCount/2);
 	} else {
+		/* use hardware mipmapping */
 		voxelTexture->bind(0);
 		glGenerateMipmap(GL_TEXTURE_3D);
 
 	}
 }
 
+void occlusionCulling(double time) {
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	shadowShader->bind();
+	Framebuffer::reset();
+	shadowShader->set("u_project", cam.final);
+	scene.drawObjects(time, shadowShader, true);
+}
+
+void voxelCone(double time) {
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	voxelConeShader->bind();
+	Framebuffer::reset();
+	voxelConeShader->set("u_project", cam.final);
+	voxelConeShader->set("u_cameraPos", cam.pos);
+
+	voxelConeShader->set("u_tracedShadows", enableTracedShadows);
+	voxelConeShader->set("u_shadowAperture", shadowAperture);
+
+	voxelConeShader->set("u_renderMode", renderMode);
+	voxelConeShader->set("u_indirectLight", enableIndirectLight);
+	voxelConeShader->set("u_voxelCount", voxelCount);
+	voxelConeShader->set("u_diffuseNoise", addDiffuseNoise);
+	voxelConeShader->set("u_restitution", restitution);
+
+	voxelTexture->bind(1);
+	voxelConeShader->set("u_voxelTexture", 1);
+	for (int i = 0; i < 6; i++) {
+		if (anisotropicVoxels) {
+			voxelTextureAniso[i]->bind(i+2);
+		}
+		voxelConeShader->setIndex("u_voxelTextureAniso", i, i+2);
+	}
+
+	voxelConeShader->set("u_lightProj", scene.light.getProjectionMatrix());
+	voxelConeShader->set("u_shadowBias", shadowBias);
+	shadowMap->t->bind(0);
+	voxelConeShader->set("u_shadowMap", 0);
+
+	voxelConeShader->set("u_time", (float)time);
+
+	scene.drawObjects(time, voxelConeShader);
+
+	particleShader->bind();
+	particleShader->set("u_project", cam.final);
+	scene.drawParticles(time, particleShader);
+}
+
+/* debug function to show the voxel storage */
 void showVoxels() {
+
 	visualizeShader->bind();
 	visualizeShader->set("u_project", cam.final);
 	visualizeShader->set("u_voxelCount", voxelCount);
@@ -212,9 +288,11 @@ void showVoxels() {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 	glClear(GL_DEPTH_BUFFER_BIT);
+	/* I render a cube and then perform raytracing inside the cube to sample the voxel values */
 	cubeMesh->draw();
 }
 
+/* recompiles the shaders with the updated header */
 void recompileShaders() {
 	voxelizeShader->header = anisoHeader[anisotropicVoxels];
 	visualizeShader->header = anisoHeader[anisotropicVoxels];
@@ -226,10 +304,9 @@ void recompileShaders() {
 	mipmapShader->load();
 }
 
+/* loads commonly used assets */
 void loadAssets() {
 
-	flatShader = assets.add("flat_shader", new Shader("flat.vert", "flat.frag", ""));
-	basicShader = assets.add("basic_shader", new Shader("basic.vert", "basic.frag", ""));
 	voxelizeShader = assets.add("voxelize_shader", new Shader("voxelize.vert", "voxelize.geom", "voxelize.frag", anisoHeader[anisotropicVoxels]));
 	visualizeShader = assets.add("visualize_shader", new Shader("showvoxels.vert", "showvoxels.frag", anisoHeader[anisotropicVoxels]));
 	voxelConeShader = assets.add("voxel_cone_shader", new Shader("voxelcone.vert", "voxelcone.frag", anisoHeader[anisotropicVoxels]));
@@ -246,6 +323,7 @@ void loadAssets() {
 	shadowMap = Framebuffer::shadowMap(2048, 2048);
 }
 
+/* utility function to generate a fire particle system */
 ParticleSystem fire(vec3 pos, float scale) {
 	static Texture *texture = loadTexture("../assets/textures/fire.jpg");
 
@@ -270,7 +348,12 @@ ParticleSystem fire(vec3 pos, float scale) {
 	return p;
 }
 
+/* generates a box with green and red walls and a light source */
+/* when useTexture is true it adds some textures to test emission */
 void addCornellBox(bool useTexture = false) {
+
+	multibounceRestitution = 0.15f;
+	restitution = 0.15f;
 
 	scene.light = SpotLight(
 		vec3(0, 1, 0),
@@ -351,6 +434,7 @@ void addCornellBox(bool useTexture = false) {
 		));
 }
 
+/* scene with a bunny */
 void bunnyScene() {
 	auto *bunnyMesh = loadMesh("../assets/models/bunny.obj");
 
@@ -366,6 +450,7 @@ void bunnyScene() {
 		));	
 }
 
+/* scene with a horse */
 void horseScene(bool useTexture = false) {
 	auto *horseMesh = loadMesh("../assets/models/horse.obj");
 
@@ -384,6 +469,7 @@ void horseScene(bool useTexture = false) {
 
 }
 
+/* scene with two spheres */
 void benchScene() {
 	auto *sphereMesh = loadMesh("../assets/models/sphere.obj");
 
@@ -408,13 +494,13 @@ void benchScene() {
 		));
 }
 
-
-
+/* test scene for particles */
 void particleScene() {
 	auto p = fire(vec3(0), 1);
 	scene.add(p);
 }
 
+/* test scene for pbr materials */
 void pbrScene(bool useTexture = false) {
 	auto *sphereMesh = loadMesh("../assets/models/sphere.obj");
 
@@ -444,7 +530,7 @@ void pbrScene(bool useTexture = false) {
 
 }
 
-
+/*sun temple demo from unreal engine 4 */
 void templeScene() {
 	scene.light = SpotLight(
 		vec3(0, 0.2, 0.5),
@@ -494,51 +580,23 @@ int main() {
 	System::init(4, 6);
 
 	Window::create(1280, 720, "Voxel Cone Tracing Demo", Window::WINDOWED, vsyncStatus);
-
 	Window::update();
 
+	/* opengl debug settings */
 	glEnable(GL_DEBUG_OUTPUT);
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(MessageCallback, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 
-	int maxTextures;
-	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextures);
-	LOG("max texture units:", maxTextures);
-
-	int work_grp_cnt[3];
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
-	printf("max global (total) work group counts x:%i y:%i z:%i\n",
-		work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
-
-	int work_grp_size[3];
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
-	printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
-		work_grp_size[0], work_grp_size[1], work_grp_size[2]);
-
-	int work_grp_inv;
-	glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
-	printf("max local work group invocations %i\n", work_grp_inv);
-
-	double oldTime = System::time();
-	int updateCount = 0;
-
+	/* initialize the camera */
 	cam = Camera(glm::radians(60.f), (float)Window::getWidth() / (float)Window::getHeight(), .1f, 100.f);
 	cam.pos = vec3(0.f, 0.f, 3.f);
 
 	loadAssets();
-	// templeScene();
-	horseScene(false);
+	templeScene();
+	// horseScene(true);
 
 	initVoxelize();
-
-	activeShader = voxelConeShader;
-
-
 
 	bool showCursor = true;
 	int lockPrev = false;
@@ -546,14 +604,17 @@ int main() {
 	vec2 oldMousePos = Input::getMousePos();
 
 	double prevTime = System::time();
+	double oldTime = prevTime;
+	int updateCount = 0;
 
 	while(!Window::shouldClose()) {
-		assets.update();
+		assets.update(); /* reloads modified assets */
 
 		double time = System:: time();
 		float timeDelta = (float)(time - prevTime);
 
 		double targetDelta = 1.0 / (double)targetfps;
+		/* if target fps has been set, wait until it is time to render again */
 		if (lockfps && timeDelta < targetDelta) {
 			double sleepTime = targetDelta - timeDelta - 0.001;
 			if (sleepTime > 0) {
@@ -564,6 +625,7 @@ int main() {
 
 		prevTime = time;
 
+		/* every second print current fps to console */
 		if (time - oldTime >= 1.0) {
 			double delta = time - oldTime;
 			LOG("FPS:", updateCount, "--  ms:", (delta / updateCount * 1000 / (time - oldTime)));
@@ -572,10 +634,7 @@ int main() {
 			updateCount = 0;
 		}
 
-		if (Input::getKey(KEY_ESCAPE)) {
-			// Window::setShouldClose(true);
-		}
-
+		/* space toggle GUI and cursor */
 		int lock = Input::getKey(KEY_SPACE);
 		if (lock & !lockPrev) {
 			showCursor = !showCursor;
@@ -584,17 +643,20 @@ int main() {
 		lockPrev = lock;
 
 		vec2 winSize = Window::getSize();
+		if (winSize.y > 0) {
+			cam.ratio = winSize.x / winSize.y;
+		}
 
+		/* updates camera rotation */
 		vec2 mousePos = Input::getMousePos();
-
 		float mouseSens = 1.f / 500;
-
 		vec2 mouseDelta = -(mousePos - oldMousePos) * mouseSens;
 		if (showCursor) mouseDelta = vec2(0, 0);
 		oldMousePos = mousePos;
+		cam.rotate(mouseDelta.x, mouseDelta.y);
 
+		/* udpates camera position */
 		vec3 move(0,0,0);
-
 		if (Input::getKey(KEY_W)) move.z -= 1;
 		if (Input::getKey(KEY_S)) move.z += 1;
 		if (Input::getKey(KEY_A)) move.x -= 1;
@@ -606,88 +668,46 @@ int main() {
 		move = move * moveSpeed * (float)timeDelta;
 		move = glm::rotateY(move, cam.hrot);
 
-		if (winSize.y > 0) {
-			cam.ratio = winSize.x / winSize.y;
-		}
-		cam.rotate(mouseDelta.x, mouseDelta.y);
 		cam.move(move);
 		cam.update();
 
+		/* generate shadow map */
 		renderShadowMap(time);
 
+		/* voxelize the scene */
 		voxelize(time);
 
+		/* resets framebuffer to default */
 		Framebuffer::reset();
 		glViewport(0, 0, (int)winSize.x, (int)winSize.y);
 
-		// glEnable(GL_BLEND);
+		/* enable face culling and depth testing */
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LEQUAL);
 
+		/* enables and clear all channels */
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		if (depthPrepass && !toggleVoxels) {
-			// glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-			// glDepthFunc(GL_LESS);
-
-			shadowShader->bind();
-			Framebuffer::reset();
-			shadowShader->set("u_project", cam.final);
-
-			scene.drawObjects(time, shadowShader, true);
-
-		}
-
 		if (!toggleVoxels) {
-			activeShader->bind();
-			Framebuffer::reset();
-			activeShader->set("u_project", cam.final);
-			activeShader->set("u_cameraPos", cam.pos);
-
-			activeShader->set("u_tracedShadows", enableTracedShadows);
-			activeShader->set("u_shadowAperture", shadowAperture);
-
-			activeShader->set("u_renderMode", renderMode);
-			activeShader->set("u_indirectLight", enableIndirectLight);
-			activeShader->set("u_voxelCount", voxelCount);
-			activeShader->set("u_diffuseNoise", addDiffuseNoise);
-			activeShader->set("u_restitution", restitution);
-
-			voxelTexture->bind(1);
-			activeShader->set("u_voxelTexture", 1);
-			for (int i = 0; i < 6; i++) {
-				if (anisotropicVoxels) {
-					voxelTextureAniso[i]->bind(i+2);
-				}
-				activeShader->setIndex("u_voxelTextureAniso", i, i+2);
+			/* if enabled perform occlusion culling */
+			if (depthPrepass) {
+				occlusionCulling(time);
 			}
-
-			activeShader->set("u_lightProj", scene.light.getProjectionMatrix());
-			activeShader->set("u_shadowBias", shadowBias);
-			shadowMap->t->bind(0);
-			activeShader->set("u_shadowMap", 0);
-
-			activeShader->set("u_time", (float)time);
-
-			scene.drawObjects(time, activeShader);
-
-			particleShader->bind();
-			particleShader->set("u_project", cam.final);
-			scene.drawParticles(time, particleShader);
-
+			/* perform voxel cone tracing */
+			voxelCone(time);
 		} else {
+			/* debug show voxel storage */
 			showVoxels();
 		}
 
 		updateCount++;
 
+		/* show GUI */
 		if (showCursor) {
-
 			ImGui::Begin("Scene editor");
 
 			if (ImGui::CollapsingHeader("Objects")) {

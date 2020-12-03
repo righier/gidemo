@@ -5,6 +5,7 @@
 #include "assets.h"
 #include "window.h"
 
+/* creates a texture from memory */
 Texture *createTexture(u8 *data, int width, int height, bool mipmap, bool aniso) {
 	u32 id;
 	glActiveTexture(GL_TEXTURE0);
@@ -35,6 +36,7 @@ Texture *createTexture(u8 *data, int width, int height, bool mipmap, bool aniso)
 	return t;
 }
 
+/* load a texture from a file */
 Texture *loadTexture(const char *path) {
 	if (path == nullptr) return nullptr;
 
@@ -42,6 +44,7 @@ Texture *loadTexture(const char *path) {
 
 	i32 width, height, cpp;
 
+	/* load from file */
 	stbi_set_flip_vertically_on_load(true);
 	u8 *data = stbi_load(path, &width, &height, &cpp, 3);
 	if (data == nullptr) {
@@ -49,6 +52,7 @@ Texture *loadTexture(const char *path) {
 		return nullptr;
 	}
 
+	/* upload to GPU */
 	Texture *t = createTexture(data, width, height);
 
 	stbi_image_free(data);
@@ -62,6 +66,7 @@ Texture *white = nullptr;
 Texture *black = nullptr;
 Texture *normal = nullptr;
 
+/* generates a 1x1 pixel texture of the given color */
 Texture *colorTexture(float r, float g, float b) {
 	r = glm::clamp(r*256.f, 0.f, 255.f);
 	g = glm::clamp(g*256.f, 0.f, 255.f);

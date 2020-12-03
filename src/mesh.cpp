@@ -50,6 +50,7 @@ Mesh::~Mesh() {
 	dispose();
 }
 
+/* loads mesh to GPU memory */
 void Mesh::setup() {
 	glGenVertexArrays(1, &vao);
 	glGenBuffers(1, &vbo);
@@ -63,6 +64,7 @@ void Mesh::setup() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(u32), &indices[0], GL_STATIC_DRAW);
 
+	/* position, uv, normal, tangent, bitangent */
 	glEnableVertexAttribArray(0);	
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, p));
 	glEnableVertexAttribArray(1);	
@@ -120,6 +122,7 @@ Mesh *loadMesh(void *_obj, int group_id) {
 		return hash(&val, sizeof(val));
 	};
 
+	/* map to reuse duplicate vertices */
 	std::unordered_map<fastObjIndex, u32, decltype(fun)> found(10, fun);
 
 	auto &group = obj->groups[group_id];
@@ -151,12 +154,12 @@ Mesh *loadMesh(void *_obj, int group_id) {
 		Vertex &v1 = vertices[indices[i+1]];
 		Vertex &v2 = vertices[indices[i+2]];
 
+		/* face edges in pos and uv coordinates */
 		vec3 dp1 = v1.p - v0.p;
 		vec3 dp2 = v2.p - v0.p;
 		vec2 dt1 = v1.uv - v0.uv;
 		vec2 dt2 = v2.uv - v0.uv;
 
-		float f = 1.0f / (dt1.x * dt2.y - dt1.y * dt2.x);
 		vec3 tan, bit;
 		tan.x = dt2.y * dp1.x - dt1.y * dp2.x;
 		tan.y = dt2.y * dp1.y - dt1.y * dp2.y;
@@ -164,6 +167,7 @@ Mesh *loadMesh(void *_obj, int group_id) {
 		bit.x = dt2.x * dp1.x - dt1.x * dp2.x;
 		bit.y = dt2.x * dp1.y - dt1.x * dp2.y;
 		bit.z = dt2.x * dp1.z - dt1.x * dp2.z;
+		float f = 1.0f / (dt1.x * dt2.y - dt1.y * dt2.x);
 		tan = glm::normalize(f * tan);
 		bit = glm::normalize(f * bit);
 

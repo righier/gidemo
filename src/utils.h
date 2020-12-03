@@ -46,12 +46,15 @@ using std::string;
 
 #define UNUSED(x) (void)(x)
 
+/* read an entire file into a string */
 bool readFile(const string &path, string &out);
 
+/* generate a 32 bit hash from a variable length buffer */
 u32 hash(const void *buffer, int size);
 
+/* string wstring conversion */
 std::wstring s2ws(const std::string &str);
 std::string ws2s(const std::wstring& wstr);
 
-
+/* random float between 0 and 1 */
 float randomf();

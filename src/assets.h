@@ -11,9 +11,11 @@ static inline string getAssetsFolder() {
 	return "../assets/";
 }
 
+/* Base class for all assets types, handles loading and disposing of assets,
+ * as well as file dependencies */
 struct Asset {
-	vector<string> files;
-	double loadTime = -100.0;
+	vector<string> files; /* list of files the asset depends on */
+	double loadTime = -100.0; /* last time the asset was loaded */
 
 	virtual void loadImpl() {
 
@@ -45,9 +47,10 @@ struct Asset {
 	}
 };
 
+/* Handles automatic reload of modified assets */
 struct AssetStore {
-	std::unordered_map<string, Asset*> assets;
-	std::unordered_map<string, Asset*> deps;
+	std::unordered_map<string, Asset*> assets; /* loaded assets */
+	std::unordered_map<string, Asset*> deps; /* map filename to asset */
 
 	AssetStore() {
 		init();
@@ -60,6 +63,8 @@ struct AssetStore {
 	template<typename T>
 	T *add(const string &name, T* asset) {
 		for (string dep: asset->files) {
+			/* when the asset is added we set all of its files pointing to the asset
+			in order to update it when the files change */
 			deps[dep] = (Asset*)asset;
 		}
 		assets[name] = (Asset*)asset;
@@ -72,17 +77,20 @@ struct AssetStore {
 
 };
 
+/* Texture wrapper class */
 struct Texture: Asset {
 	u32 id = 0;
 	u32 type;
 	u32 format;
 	u32 storageType;
 
+	/* utility function to create 3D textures */
 	static Texture *init3D(int size, bool mipmap, bool hdr) {
 		Texture *t = new Texture();
 		t->type = GL_TEXTURE_3D;
 		t->format = GL_RGBA;
-		t->storageType = hdr ? GL_RGBA16F : GL_RGBA8;
+		/* use different storage for hdr */
+		t->storageType = hdr ? GL_RGBA16F : GL_RGBA8; 
 
 		glGenTextures(1, &t->id);
 		glBindTexture(t->type, t->id);
@@ -106,10 +114,11 @@ struct Texture: Asset {
 		return t;
 	}
 
+	/* utility function to create a shadow map texture */
 	static Texture *shadowMap(int width, int height) {
 		Texture *t = new Texture();
 		t->type = GL_TEXTURE_2D;
-		t->format = GL_DEPTH_COMPONENT;
+		t->format = GL_DEPTH_COMPONENT; /* only need depth */
 		t->storageType = GL_FLOAT;
 		glGenTextures(1, &t->id);
 		t->bind(0);
@@ -140,6 +149,7 @@ struct Texture: Asset {
 	}
 };
 
+/* Framebuffer wrapper class */
 struct Framebuffer {
 	int width, height;
 	u32 id;
@@ -180,12 +190,14 @@ struct Framebuffer {
 
 };
 
+/* Shader wrapper class */
 struct Shader: Asset {
 	int id = 0;
 	string vpath, gpath, fpath;
 
 	string header = "";
 
+	/* constructors for compute shaders and standard shaders */
 	Shader() {}
 	Shader(const string &cpath, const string &header);
 	Shader(const string &vpath, const string &fpath, const string &header);
@@ -193,8 +205,10 @@ struct Shader: Asset {
 
 	void loadImpl();
 
+	/* binds shader */
 	void bind();
 
+	/* used to run compute shaders */
 	void dispatch(u32 sx, u32 sy, u32 sz);
 
 	void set(u32 uid, const int *value, int count) {
@@ -275,6 +289,7 @@ struct Shader: Asset {
 
 	static const char *getUniformName(const char *name, int index);
 
+	/* utility to set uniform arrays */
 	template <class T>
 	void setIndex(const char *name, int index, T value) {
 		set(getUniformName(name, index), value);
@@ -291,6 +306,7 @@ struct Vertex {
     vec3 b; //bitangent
 };
 
+/* Mesh class, stores vertices and indices and loads everything to gpu */
 struct Mesh: Asset {
 	vector<Vertex> vertices;
 	vector<u32> indices;
@@ -322,20 +338,27 @@ struct Mesh: Asset {
 };
 
 
-Mesh *loadMesh(void *obj, int group_id);
+/* loads only one group from an OBJ file handle*/
+Mesh *loadMesh(void *obj_handle, int group_id);
 
+/* loads a OBJ file as a single mesh */
 Mesh *loadMesh(const string &path);
 
+/* loads a texture from path */
 Texture *loadTexture(const char *path);
 
+/* creates a texture from memory */
 Texture *createTexture(u8 *data, int width, int height, bool mipmap = true, bool aniso = true);
 
 Texture *whiteTexture();
 Texture *blackTexture();
 Texture *normalTexture();
 
+/* generates one mipmap level for a 3D texture using the given compute shader */
 void genMipmapLevel(Shader *program, Texture *src, Texture *dest, int level, int size, bool aniso, int dir);
 
+/* generates a mipmap for a 3D anisotropic texture using the given compute shader */
 void genMipmap(Shader *program, Texture *texture, int size, bool aniso, int dir);
 
+/* generates a mipmap for a 3D texture using the given compute shader */
 void genMipmap(Shader *program, Texture *texture, int size);
