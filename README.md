@@ -4,6 +4,10 @@
 
 video: https://www.youtube.com/watch?v=OcmgxbZ4vmA
 
+In this demo I implemented realtime global illumination using the voxel cone tracing technique (https://doi.org/10.1111/j.1467-8659.2011.02063.x)
+
+I then improved on the original technique by propagating light temporally across frames, which approximates the effect of simulating infinite light bounces.
+
 **Features:**
 - Diffuse Cones
 - Specular Cones
